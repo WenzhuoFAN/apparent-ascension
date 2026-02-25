@@ -2,65 +2,333 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import NavBar from "../components/NavBar.astro";
 import Section from "../components/Section.astro";
-import FilterChips from "../components/FilterChips.astro";
-
-import { getCollection } from "astro:content";
-import { formatDateTimeCN } from "../utils/date";
-
-const scheduleEntries = await getCollection("schedule");
-const weeks = scheduleEntries
-  .map((e) => ({ slug: e.slug, ...e.data }))
-  .sort((a, b) => b.weekStart.localeCompare(a.weekStart));
-
-const allTags = Array.from(new Set(weeks.flatMap(w => w.items.flatMap(i => (i.type ? i.type.split("/").map(s=>s.trim()) : []))))).filter(Boolean).slice(0, 20);
+const defaultPosterTitle = "本周日程表";
+const roomCoverMap = {
+  fiona: "/images/FionaLive.jpg",
+  gladys: "/images/GladysLive.jpg",
+};
 ---
-<BaseLayout title="日程表｜闪耀舞台" description="每周直播日程表（本周/下周）">
+<BaseLayout title="日程表｜闪耀舞台" description="每周直播日程表（手动维护）">
   <NavBar slot="nav" active="schedule" />
 
   <h1 class="h1">每周直播日程表 🗓️</h1>
-  <p class="p">日程表先手动维护最稳：每周新增一个 schedule 文件即可。链接没有也没关系，后补就行。</p>
+  <p class="p">你每周手动更新即可：改标题、日期、时间、直播间，封面会按直播间自动切换。</p>
 
-  <FilterChips tags={allTags} targetSelector='[data-filter-item]' />
+  <section class="poster-wrap">
+    <div class="poster-head">
+      <h2 class="h2">本周封面</h2>
+      <button class="edit-btn" id="open-poster-editor" type="button">编辑</button>
+    </div>
 
-  {weeks.map((w) => (
-    <Section title={`Week of ${w.weekStart}`} subtitle="按成员/标签筛选（前端即时过滤）。">
-      <div class="list">
-        {w.items
-          .slice()
-          .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
-          .map((it) => (
-            <div class="row" data-filter-item data-member={it.member} data-tags={(it.type ?? "").split("/").map(s=>s.trim()).filter(Boolean).join(",")}>
-              <div class="when">{formatDateTimeCN(it.startAt)}</div>
-              <div class="what">
-                <div class="t">{it.title}</div>
-                <div class="meta">
-                  <span class="pill">{it.member}</span>
-                  {it.type && it.type.split("/").map((x) => <span class="pill faint">#{x.trim()}</span>)}
-                </div>
-              </div>
-              <div class="go">
-                {it.link ? (
-                  <a class="link" href={it.link} target="_blank" rel="noreferrer">链接</a>
-                ) : (
-                  <span class="muted">待补</span>
-                )}
-              </div>
-            </div>
-          ))}
+    <article class="poster-card">
+      <div class="poster-title" id="poster-title">{defaultPosterTitle}</div>
+      <div class="poster-sub" id="poster-sub">日期：-- ｜ 时间：-- ｜ 直播间：--</div>
+      <img id="poster-image" class="poster-image" alt="" hidden />
+      <div id="poster-empty" class="poster-empty">未找到封面图片，请检查 `public/images/FionaLive.jpg` 与 `public/images/GladysLive.jpg`。</div>
+    </article>
+  </section>
+
+  <Section title="本周日程">
+    <div class="list">
+      <div class="row" id="manual-row" hidden>
+        <div class="when" id="manual-when">--</div>
+        <div class="what">
+          <div class="t" id="manual-title">--</div>
+          <div class="meta" id="manual-meta">直播间：--</div>
+        </div>
+        <div class="go">
+          <span class="muted" id="manual-status">已保存</span>
+        </div>
       </div>
-    </Section>
-  ))}
+    </div>
+    <p class="p" id="manual-empty">暂无已保存日程，点击上方“编辑”添加。</p>
+  </Section>
 
-  {!weeks.length && <p class="p">还没有日程表数据。去 src/content/schedule 新建一个文件吧～</p>}
+  <div class="editor-modal" id="poster-editor-modal" hidden>
+    <div class="editor-panel">
+      <div class="editor-head">
+        <h3>封面编辑</h3>
+        <button class="close-btn" id="close-poster-editor" type="button" aria-label="关闭">×</button>
+      </div>
+
+      <label class="field">
+        <span>标题</span>
+        <input id="poster-title-input" type="text" placeholder="例如：Week of 2026-03-02" />
+      </label>
+
+      <label class="field">
+        <span>日期</span>
+        <input id="poster-date-input" type="date" />
+      </label>
+
+      <label class="field">
+        <span>时间</span>
+        <input id="poster-time-input" type="time" />
+      </label>
+
+      <label class="field">
+        <span>直播间</span>
+        <select id="poster-room-input">
+          <option value="fiona">心宜</option>
+          <option value="gladys">思诺</option>
+        </select>
+      </label>
+
+      <div class="field">
+        <span>封面预览（自动）</span>
+        <img id="poster-cover-preview" class="cover-preview" alt="" hidden />
+        <div id="poster-cover-empty" class="muted">当前直播间对应封面未找到，请检查图片路径。</div>
+      </div>
+
+      <p class="p path-note">封面路径可在本文件顶部 `roomCoverMap` 修改。</p>
+
+      <div class="editor-actions">
+        <button class="edit-btn primary" id="save-poster" type="button">保存</button>
+        <button class="edit-btn" id="clear-poster" type="button">清空</button>
+        <button class="edit-btn" id="cancel-poster" type="button">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script define:vars={{ defaultPosterTitle, roomCoverMap }}>
+    (() => {
+      const STORAGE_KEY = "schedule.poster.v1";
+      const fallbackTitle = String(defaultPosterTitle || "本周日程表");
+      const coverMap = roomCoverMap || { fiona: "", gladys: "" };
+      const roomLabelMap = { fiona: "心宜", gladys: "思诺" };
+
+      const openBtn = document.getElementById("open-poster-editor");
+      const modal = document.getElementById("poster-editor-modal");
+      const closeBtn = document.getElementById("close-poster-editor");
+      const cancelBtn = document.getElementById("cancel-poster");
+      const saveBtn = document.getElementById("save-poster");
+      const clearBtn = document.getElementById("clear-poster");
+
+      const titleInput = document.getElementById("poster-title-input");
+      const dateInput = document.getElementById("poster-date-input");
+      const timeInput = document.getElementById("poster-time-input");
+      const roomInput = document.getElementById("poster-room-input");
+      const preview = document.getElementById("poster-cover-preview");
+      const previewEmpty = document.getElementById("poster-cover-empty");
+
+      const titleEl = document.getElementById("poster-title");
+      const subEl = document.getElementById("poster-sub");
+      const imageEl = document.getElementById("poster-image");
+      const emptyEl = document.getElementById("poster-empty");
+      const manualRow = document.getElementById("manual-row");
+      const manualWhenEl = document.getElementById("manual-when");
+      const manualTitleEl = document.getElementById("manual-title");
+      const manualMetaEl = document.getElementById("manual-meta");
+      const manualStatusEl = document.getElementById("manual-status");
+      const manualEmptyEl = document.getElementById("manual-empty");
+
+      if (!openBtn || !modal || !closeBtn || !cancelBtn || !saveBtn || !clearBtn) return;
+      if (!titleInput || !dateInput || !timeInput || !roomInput || !preview || !previewEmpty || !titleEl || !subEl || !imageEl || !emptyEl) return;
+      if (!manualRow || !manualWhenEl || !manualTitleEl || !manualMetaEl || !manualStatusEl || !manualEmptyEl) return;
+
+      const readPoster = () => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed !== "object") return null;
+          return {
+            title: typeof parsed.title === "string" ? parsed.title : "",
+            date: typeof parsed.date === "string" ? parsed.date : "",
+            time: typeof parsed.time === "string" ? parsed.time : "",
+            room: parsed.room === "gladys" ? "gladys" : "fiona",
+          };
+        } catch {
+          return null;
+        }
+      };
+
+      const writePoster = (payload) => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      };
+
+      const getCoverByRoom = (room) => (room === "gladys" ? String(coverMap.gladys || "") : String(coverMap.fiona || ""));
+      const formatDateCN = (date) => {
+        const text = String(date || "").trim();
+        const m = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return text || "--";
+        return `${Number(m[1])}年${Number(m[2])}月${Number(m[3])}日`;
+      };
+
+      const applyImage = (imgEl, emptyStateEl, src, emptyText) => {
+        if (!src) {
+          imgEl.hidden = true;
+          imgEl.removeAttribute("src");
+          if (emptyStateEl) {
+            emptyStateEl.textContent = emptyText;
+            emptyStateEl.hidden = false;
+          }
+          return;
+        }
+
+        imgEl.onerror = () => {
+          imgEl.hidden = true;
+          if (emptyStateEl) {
+            emptyStateEl.textContent = `找不到封面：${src}`;
+            emptyStateEl.hidden = false;
+          }
+        };
+        imgEl.onload = () => {
+          imgEl.hidden = false;
+          if (emptyStateEl) emptyStateEl.hidden = true;
+        };
+        imgEl.src = src;
+      };
+
+      const renderManualRow = (payload) => {
+        if (!payload) {
+          manualRow.hidden = true;
+          manualEmptyEl.hidden = false;
+          return;
+        }
+
+        const room = payload.room === "gladys" ? "gladys" : "fiona";
+        const title = payload.title?.trim() || fallbackTitle;
+        const date = formatDateCN(payload.date);
+        const time = payload.time?.trim() || "--";
+
+        manualWhenEl.textContent = `${date} ${time}`;
+        manualTitleEl.textContent = title;
+        manualMetaEl.textContent = `直播间：${roomLabelMap[room]}`;
+        manualStatusEl.textContent = "已保存";
+        manualRow.hidden = false;
+        manualEmptyEl.hidden = true;
+      };
+
+      const renderPoster = (payload) => {
+        const hasPayload = !!payload;
+        const title = payload?.title?.trim() || fallbackTitle;
+        const room = payload?.room === "gladys" ? "gladys" : "fiona";
+        const date = payload?.date?.trim() || "--";
+        const time = payload?.time?.trim() || "--";
+        const roomLabel = hasPayload ? roomLabelMap[room] : "--";
+        const cover = hasPayload ? getCoverByRoom(room) : "";
+
+        titleEl.textContent = title;
+        subEl.textContent = `日期：${date} ｜ 时间：${time} ｜ 直播间：${roomLabel}`;
+        applyImage(imageEl, emptyEl, cover, "未找到封面图片，请检查 `public/images/FionaLive.jpg` 与 `public/images/GladysLive.jpg`。");
+        renderManualRow(payload);
+      };
+
+      const setPreviewByRoom = (room) => {
+        const cover = getCoverByRoom(room);
+        applyImage(preview, previewEmpty, cover, "当前直播间对应封面未找到，请检查图片路径。");
+      };
+
+      const openModal = () => {
+        const current = readPoster();
+        titleInput.value = current?.title || fallbackTitle;
+        dateInput.value = current?.date || "";
+        timeInput.value = current?.time || "";
+        roomInput.value = current?.room || "fiona";
+        setPreviewByRoom(roomInput.value);
+        modal.hidden = false;
+      };
+
+      const closeModal = () => {
+        modal.hidden = true;
+      };
+
+      roomInput.addEventListener("change", () => {
+        setPreviewByRoom(roomInput.value);
+      });
+
+      openBtn.addEventListener("click", openModal);
+      closeBtn.addEventListener("click", closeModal);
+      cancelBtn.addEventListener("click", closeModal);
+
+      saveBtn.addEventListener("click", () => {
+        const payload = {
+          title: titleInput.value.trim() || fallbackTitle,
+          date: dateInput.value || "",
+          time: timeInput.value || "",
+          room: roomInput.value === "gladys" ? "gladys" : "fiona",
+        };
+        writePoster(payload);
+        renderPoster(payload);
+        closeModal();
+      });
+
+      clearBtn.addEventListener("click", () => {
+        if (!confirm("确定清空当前配置吗？")) return;
+        localStorage.removeItem(STORAGE_KEY);
+        renderPoster(null);
+        closeModal();
+      });
+
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) closeModal();
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !modal.hidden) closeModal();
+      });
+
+      renderPoster(readPoster());
+    })();
+  </script>
 
   <style lang="scss">
   @use "../styles/mixins" as m;
+
+  .poster-wrap{
+    @include m.glass;
+    border-radius: var(--r-xl);
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .poster-head{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .poster-card{
+    border-radius: var(--r-lg);
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.14);
+    padding: 12px;
+  }
+  .poster-title{
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .poster-sub{
+    color: rgba(255,255,255,.72);
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .poster-image{
+    width: 100%;
+    max-height: 420px;
+    object-fit: contain;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.24);
+    display: block;
+  }
+  .poster-empty{
+    border-radius: 12px;
+    border: 1px dashed rgba(255,255,255,.18);
+    background: rgba(0,0,0,.14);
+    min-height: 210px;
+    display: grid;
+    place-items: center;
+    color: rgba(255,255,255,.56);
+    font-size: 14px;
+  }
 
   .list{ display: grid; gap: 10px; }
   .row{
     @include m.glass;
     border-radius: var(--r-lg);
-    padding: 12px 12px;
+    padding: 12px;
     display: grid;
     grid-template-columns: 200px 1fr 64px;
     gap: 12px;
@@ -68,16 +336,7 @@ const allTags = Array.from(new Set(weeks.flatMap(w => w.items.flatMap(i => (i.ty
   }
   .when{ font-size: 13px; color: rgba(255,255,255,.70); }
   .t{ font-weight: 700; }
-  .meta{ display:flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
-  .pill{
-    padding: 4px 8px;
-    border-radius: 999px;
-    font-size: 12px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.18);
-    color: rgba(255,255,255,.78);
-  }
-  .pill.faint{ color: rgba(255,255,255,.62); }
+  .meta{ color: rgba(255,255,255,.60); font-size: 13px; margin-top: 6px; }
   .muted{ color: rgba(255,255,255,.55); font-size: 12px; }
   .link{
     font-size: 12px;
@@ -87,6 +346,107 @@ const allTags = Array.from(new Set(weeks.flatMap(w => w.items.flatMap(i => (i.ty
     background: rgba(0,0,0,.14);
   }
   .link:hover{ background: rgba(0,0,0,.22); }
+
+  .edit-btn{
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 999px;
+    background: rgba(20,20,30,.5);
+    color: rgba(255,255,255,.9);
+    padding: 7px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .edit-btn.primary{
+    background: rgba(74, 206, 148, .18);
+    border-color: rgba(74, 206, 148, .5);
+    color: rgba(224,255,241,.98);
+  }
+  .edit-btn:hover{
+    border-color: rgba(255,255,255,.30);
+    background: rgba(40,40,60,.62);
+  }
+
+  .editor-modal{
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: grid;
+    place-items: center;
+    background: rgba(0,0,0,.56);
+    padding: 16px;
+  }
+  .editor-modal[hidden]{ display: none !important; }
+  .editor-panel{
+    width: min(620px, 100%);
+    border-radius: 20px;
+    padding: 16px;
+    @include m.glass;
+  }
+  .editor-head{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .editor-head h3{
+    margin: 0;
+    font-size: 18px;
+  }
+  .close-btn{
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(0,0,0,.3);
+    color: rgba(255,255,255,.9);
+    cursor: pointer;
+  }
+  .field{
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .field span{
+    font-size: 12px;
+    color: rgba(255,255,255,.78);
+  }
+  .field input{
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(0,0,0,.34);
+    color: rgba(255,255,255,.92);
+    padding: 10px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .field select{
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(0,0,0,.34);
+    color: rgba(255,255,255,.92);
+    padding: 10px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .cover-preview{
+    width: 100%;
+    max-height: 320px;
+    object-fit: contain;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(0,0,0,.2);
+  }
+  .path-note{
+    margin: 4px 0 0;
+    color: rgba(255,255,255,.62);
+    font-size: 12px;
+  }
+  .editor-actions{
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+  }
 
   @media (max-width: 860px){
     .row{ grid-template-columns: 1fr; }
