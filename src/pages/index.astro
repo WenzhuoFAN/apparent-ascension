@@ -1,17 +1,41 @@
 ---
-
+import Layout from "../layouts/Layout.astro";
+import Hero from "../components/Hero.astro";
+import Section from "../components/Section.astro";
+import Card from "../components/Card.astro";
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Layout title="闪耀舞台 · 粉丝站">
+  <Hero
+    title="闪耀舞台"
+    subtitle="一个用于介绍与收录 Fiona（心宜）& Gladys（思诺） 的非官方粉丝站：时间线、作品、活动、切片索引。"
+  />
+
+  <main>
+    <Section
+      id="start"
+      eyebrow="Start here"
+      title="从这里开始"
+      desc="快速入口：新人入坑、成员介绍、时间线与作品索引。"
+    >
+      <div class="grid">
+        <Card title="新人入坑" desc="推荐观看顺序、常见术语、必看内容合集。" />
+        <Card title="成员介绍" desc="两位成员的档案、代表作与名场面索引。" />
+        <Card title="时间线" desc="按月份整理的重要事件与纪念日节点。" />
+      </div>
+    </Section>
+
+    <Section
+      id="archive"
+      eyebrow="Archive"
+      title="收录与索引"
+      desc="按标签/系列/平台整理，让你想找的内容一秒定位。"
+    >
+      <div class="grid">
+        <Card title="作品库" desc="歌曲、Cover、MV、企划作品汇总。" />
+        <Card title="直播/切片" desc="按主题、系列、联动对象归档。" />
+        <Card title="活动/联动" desc="演出、联动、纪念企划集中整理。" />
+      </div>
+    </Section>
+  </main>
+</Layout>

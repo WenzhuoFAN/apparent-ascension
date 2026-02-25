@@ -1,0 +1,64 @@
+---
+const { title, subtitle } = Astro.props;
+---
+<section class="hero" data-reveal>
+  <div class="container">
+    <p class="eyebrow">Shiny Stage · Fansite</p>
+    <h1>{title}</h1>
+    <p class="sub">{subtitle}</p>
+
+    <div class="actions">
+      <a class="btn primary" href="#start">开始浏览</a>
+      <a class="btn" href="#archive">内容索引</a>
+    </div>
+  </div>
+</section>
+
+<style lang="scss">
+.hero{
+  padding: 108px 0 86px;
+}
+h1{
+  margin: 18px 0 10px;
+  font-size: 52px;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+}
+.sub{
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.8;
+  max-width: 70ch;
+}
+.actions{
+  margin-top: 22px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.btn{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  transition: transform .25s var(--ease-out), background .25s var(--ease-out), border-color .25s var(--ease-out);
+}
+.btn:hover{
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.18);
+  background: rgba(255,255,255,.09);
+}
+.btn.primary{
+  border-color: rgba(140,160,255,.35);
+  background: linear-gradient(135deg, rgba(120,140,255,.35), rgba(255,120,220,.22));
+}
+@media (max-width: 560px){
+  h1{ font-size: 40px; }
+  .hero{ padding: 92px 0 68px; }
+}
+</style>
