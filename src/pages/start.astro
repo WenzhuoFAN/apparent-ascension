@@ -2,13 +2,18 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import NavBar from "../components/NavBar.astro";
 import Section from "../components/Section.astro";
-import TagPills from "../components/TagPills.astro";
 import Card from "../components/Card.astro";
 import { getCollection } from "astro:content";
 
 const mustTag = "入坑必看";
-const clips = (await getCollection("clips")).filter((x) => x.data.tags.includes(mustTag)).slice(0, 6);
-const fanworks = (await getCollection("fanworks")).filter((x) => x.data.tags.includes(mustTag)).slice(0, 6);
+const kiloTag = "千克必看";
+const allClips = await getCollection("clips");
+const allFanworks = await getCollection("fanworks");
+
+const mustClips = allClips.filter((x) => x.data.tags.includes(mustTag)).slice(0, 6);
+const mustFanworks = allFanworks.filter((x) => x.data.tags.includes(mustTag)).slice(0, 6);
+const kiloClips = allClips.filter((x) => x.data.tags.includes(kiloTag)).slice(0, 6);
+const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).slice(0, 6);
 ---
 <BaseLayout title="入坑｜闪耀舞台" description="新粉路线：先看什么、再看什么、补课清单">
   <NavBar slot="nav" active="start" />
@@ -17,39 +22,376 @@ const fanworks = (await getCollection("fanworks")).filter((x) => x.data.tags.inc
 
   <Section title="先认识她们">
     <div class="grid cols-2">
-      <Card href="/members/fiona" title="Fiona（心宜）" desc="成员页：关键词、风格、推荐观看清单、常用链接。" icon="🫧" />
-      <Card href="/members/gladys" title="Gladys（思诺）" desc="成员页：关键词、风格、推荐观看清单、常用链接。" icon="🌙" />
+      <Card href="/members/fiona" title="心宜（Fiona）" desc="成员页：关键词、风格、推荐观看清单、常用链接。" avatar="/images/Fiona.jpg" />
+      <Card href="/members/gladys" title="思诺（Gladys）" desc="成员页：关键词、风格、推荐观看清单、常用链接。" avatar="/images/Gladys.jpg" />
     </div>
   </Section>
 
-  <Section title="先看 6 条“入坑必看”">
-    <p class="p" style="margin-bottom: 10px;">来自精选库（切片 + 二创）中标记了 <span class="kbd">#{mustTag}</span> 的条目。</p>
+  <Section title="入坑必看">
+    <div class="admin-bar">
+      <button class="admin-btn" id="open-rec-admin" type="button">编辑</button>
+    </div>
 
-    <div class="grid cols-3">
-      {[...clips, ...fanworks].slice(0, 6).map((r) => (
-        <a class="rec" href={r.data.url} target="_blank" rel="noreferrer">
+    <div class="grid cols-3" id="must-rec-grid">
+      {[...mustClips, ...mustFanworks].slice(0, 6).map((r) => (
+        <a class="rec rec-static" href={r.data.url} target="_blank" rel="noreferrer">
           <div class="t">{r.data.title}</div>
+          {r.data.cover && <img class="cover" src={r.data.cover} alt="" loading="lazy" referrerpolicy="no-referrer" />}
           <div class="d">{r.data.reason ?? ""}</div>
-          <div class="meta">
-            <span class="pill">{r.data.member}</span>
-            <span class="pill faint">{r.collection}</span>
-          </div>
-          <TagPills tags={r.data.tags.slice(0, 4)} />
         </a>
       ))}
     </div>
 
-    {!clips.length && !fanworks.length && (
-      <p class="p">你还没标注 “入坑必看” 的推荐条目。去 src/content/clips 或 fanworks 里给 tags 加上它即可。</p>
+    {!mustClips.length && !mustFanworks.length && (
+      <p class="p" id="must-empty-msg">你还没标注 “入坑必看” 的推荐条目。去 src/content/clips 或 fanworks 里给 tags 加上它即可。</p>
     )}
   </Section>
 
-  <Section title="千克入坑必看">
-    <p class="p">
-      你可以把本站当成每周入口：先看 <a class="inline" href="/schedule">排班</a>，直播结束后补 <a class="inline" href="/streams">记录</a>，
-      看到好切片/二创就丢进 <a class="inline" href="/library">精选库</a>，周末顺手记一下 <a class="inline" href="/stats">粉丝数快照</a>。
-    </p>
+  <Section title="千克必看">
+    <div class="grid cols-3" id="kilo-rec-grid">
+      {[...kiloClips, ...kiloFanworks].slice(0, 6).map((r) => (
+        <a class="rec rec-static" href={r.data.url} target="_blank" rel="noreferrer">
+          <div class="t">{r.data.title}</div>
+          {r.data.cover && <img class="cover" src={r.data.cover} alt="" loading="lazy" referrerpolicy="no-referrer" />}
+          <div class="d">{r.data.reason ?? ""}</div>
+        </a>
+      ))}
+    </div>
+
+    {!kiloClips.length && !kiloFanworks.length && (
+      <p class="p" id="kilo-empty-msg">你还没标注 “千克必看” 的推荐条目。去 src/content/clips 或 fanworks 里给 tags 加上它即可。</p>
+    )}
   </Section>
+
+  <div class="admin-modal" id="rec-admin-modal" hidden>
+    <div class="admin-panel">
+      <div class="admin-head">
+        <h3>推荐条目编辑</h3>
+        <button class="admin-close" id="close-rec-admin" type="button" aria-label="关闭">×</button>
+      </div>
+
+      <div class="admin-grid">
+        <label class="field full">
+          <span>B站视频链接</span>
+          <input id="rec-link-input" placeholder="https://www.bilibili.com/video/BV..." type="url" />
+        </label>
+
+        <label class="field">
+          <span>板块</span>
+          <select id="rec-section-input">
+            <option value="must">入坑必看</option>
+            <option value="kilo">千克必看</option>
+          </select>
+        </label>
+
+        <div class="field actions">
+          <span>自动配置</span>
+          <button class="admin-btn" id="fetch-rec-meta" type="button">抓取标题和封面</button>
+        </div>
+
+        <label class="field full">
+          <span>标题</span>
+          <input id="rec-title-input" placeholder="自动抓取后可再手改" type="text" />
+        </label>
+
+        <label class="field full">
+          <span>封面链接</span>
+          <input id="rec-cover-input" placeholder="自动抓取后会填好" type="url" />
+        </label>
+
+        <div class="field full">
+          <span>封面预览</span>
+          <img class="cover-preview" id="rec-cover-preview" alt="" hidden />
+        </div>
+
+        <label class="field full">
+          <span>说明（你自己写）</span>
+          <textarea id="rec-reason-input" rows="3" placeholder="例如：先看这个合辑，快速认识经典梗。"></textarea>
+        </label>
+      </div>
+
+      <p class="admin-status" id="rec-admin-status"></p>
+
+      <div class="admin-actions">
+        <button class="admin-btn primary" id="save-rec-entry" type="button">保存到页面</button>
+        <button class="admin-btn" id="cancel-rec-entry" type="button">取消</button>
+      </div>
+
+      <div class="admin-list">
+        <div class="admin-list-title">已保存（本机浏览器）</div>
+        <div id="rec-admin-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "start.custom.recs.v1";
+      const VIEW_API = "https://api.bilibili.com/x/web-interface/view";
+
+      const mustGrid = document.getElementById("must-rec-grid");
+      const kiloGrid = document.getElementById("kilo-rec-grid");
+      const mustEmpty = document.getElementById("must-empty-msg");
+      const kiloEmpty = document.getElementById("kilo-empty-msg");
+
+      const modal = document.getElementById("rec-admin-modal");
+      const openBtn = document.getElementById("open-rec-admin");
+      const closeBtn = document.getElementById("close-rec-admin");
+      const cancelBtn = document.getElementById("cancel-rec-entry");
+      const fetchBtn = document.getElementById("fetch-rec-meta");
+      const saveBtn = document.getElementById("save-rec-entry");
+
+      const linkInput = document.getElementById("rec-link-input");
+      const sectionInput = document.getElementById("rec-section-input");
+      const titleInput = document.getElementById("rec-title-input");
+      const coverInput = document.getElementById("rec-cover-input");
+      const reasonInput = document.getElementById("rec-reason-input");
+      const statusEl = document.getElementById("rec-admin-status");
+      const listEl = document.getElementById("rec-admin-list");
+      const coverPreview = document.getElementById("rec-cover-preview");
+
+      if (!mustGrid || !kiloGrid || !modal || !openBtn || !closeBtn || !cancelBtn || !fetchBtn || !saveBtn) return;
+      if (!linkInput || !sectionInput || !titleInput || !coverInput || !reasonInput || !statusEl || !listEl || !coverPreview) return;
+
+      const showStatus = (msg, isErr = false) => {
+        statusEl.textContent = msg || "";
+        statusEl.classList.toggle("err", !!isErr);
+      };
+
+      const normalizeUrl = (url) => String(url || "").trim();
+      const normalizeCover = (url) => normalizeUrl(url).replace(/^http:\/\//i, "https://");
+
+      const parseVideoId = (url) => {
+        const raw = normalizeUrl(url);
+        if (!raw) return null;
+
+        const bv = raw.match(/BV[0-9A-Za-z]{10}/i);
+        if (bv) return { bvid: bv[0] };
+
+        const av = raw.match(/(?:\/av|aid=)(\d+)/i);
+        if (av) return { aid: av[1] };
+
+        return null;
+      };
+
+      const readCustom = () => {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) return [];
+          return parsed.filter((x) =>
+            x &&
+            (x.section === "must" || x.section === "kilo") &&
+            typeof x.url === "string" &&
+            typeof x.title === "string"
+          );
+        } catch {
+          return [];
+        }
+      };
+
+      const writeCustom = (items) => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      };
+
+      const createCard = (item) => {
+        const a = document.createElement("a");
+        a.className = "rec rec-custom";
+        a.href = item.url;
+        a.target = "_blank";
+        a.rel = "noreferrer";
+
+        const t = document.createElement("div");
+        t.className = "t";
+        t.textContent = item.title;
+        a.appendChild(t);
+
+        if (item.cover) {
+          const img = document.createElement("img");
+          img.className = "cover";
+          img.src = item.cover;
+          img.alt = "";
+          img.loading = "lazy";
+          img.referrerPolicy = "no-referrer";
+          a.appendChild(img);
+        }
+
+        const d = document.createElement("div");
+        d.className = "d";
+        d.textContent = item.reason || "";
+        a.appendChild(d);
+
+        return a;
+      };
+
+      const updateEmptyState = () => {
+        const custom = readCustom();
+        const mustHasCustom = custom.some((x) => x.section === "must");
+        const kiloHasCustom = custom.some((x) => x.section === "kilo");
+        const mustHasStatic = !!mustGrid.querySelector(".rec-static");
+        const kiloHasStatic = !!kiloGrid.querySelector(".rec-static");
+
+        if (mustEmpty) mustEmpty.hidden = mustHasStatic || mustHasCustom;
+        if (kiloEmpty) kiloEmpty.hidden = kiloHasStatic || kiloHasCustom;
+      };
+
+      const renderAdminList = () => {
+        const items = readCustom();
+        listEl.innerHTML = "";
+
+        if (!items.length) {
+          const p = document.createElement("p");
+          p.className = "p";
+          p.textContent = "暂无本地保存条目。";
+          listEl.appendChild(p);
+          return;
+        }
+
+        items.forEach((item) => {
+          const row = document.createElement("div");
+          row.className = "admin-item";
+
+          const left = document.createElement("div");
+          const name = document.createElement("div");
+          name.textContent = item.title;
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.textContent = `${item.section === "must" ? "入坑必看" : "千克必看"} · ${item.url}`;
+          left.append(name, meta);
+
+          const del = document.createElement("button");
+          del.className = "admin-delete";
+          del.type = "button";
+          del.textContent = "删除";
+          del.addEventListener("click", () => {
+            const next = readCustom().filter((x) => x.id !== item.id);
+            writeCustom(next);
+            renderCustomCards();
+            renderAdminList();
+            showStatus("已删除。");
+          });
+
+          row.append(left, del);
+          listEl.appendChild(row);
+        });
+      };
+
+      const renderCustomCards = () => {
+        document.querySelectorAll(".rec-custom").forEach((x) => x.remove());
+
+        const items = readCustom();
+        const mustItems = items.filter((x) => x.section === "must").reverse();
+        const kiloItems = items.filter((x) => x.section === "kilo").reverse();
+
+        mustItems.forEach((item) => mustGrid.prepend(createCard(item)));
+        kiloItems.forEach((item) => kiloGrid.prepend(createCard(item)));
+        updateEmptyState();
+      };
+
+      const resetForm = () => {
+        linkInput.value = "";
+        sectionInput.value = "must";
+        titleInput.value = "";
+        coverInput.value = "";
+        reasonInput.value = "";
+        coverPreview.hidden = true;
+        coverPreview.removeAttribute("src");
+        showStatus("");
+      };
+
+      const openModal = () => {
+        modal.hidden = false;
+        renderAdminList();
+      };
+
+      const closeModal = () => {
+        modal.hidden = true;
+        resetForm();
+      };
+
+      const syncCoverPreview = () => {
+        const src = normalizeCover(coverInput.value);
+        if (!src) {
+          coverPreview.hidden = true;
+          coverPreview.removeAttribute("src");
+          return;
+        }
+        coverPreview.src = src;
+        coverPreview.hidden = false;
+      };
+
+      const fetchMeta = async () => {
+        const link = normalizeUrl(linkInput.value);
+        const id = parseVideoId(link);
+
+        if (!id) {
+          showStatus("链接里没识别到 BV/av 号。", true);
+          return;
+        }
+
+        showStatus("正在抓取标题和封面...");
+        try {
+          const qs = new URLSearchParams(id).toString();
+          const resp = await fetch(`${VIEW_API}?${qs}`);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+          const json = await resp.json();
+          if (!json || json.code !== 0 || !json.data) {
+            throw new Error(json?.message || "B站接口返回异常");
+          }
+
+          titleInput.value = json.data.title || "";
+          coverInput.value = normalizeCover(json.data.pic || "");
+          syncCoverPreview();
+          showStatus("已自动填好标题和封面。");
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          showStatus(`抓取失败：${msg}。你也可以手动填写标题和封面。`, true);
+        }
+      };
+
+      const saveEntry = () => {
+        const item = {
+          id: (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`).toString(),
+          section: sectionInput.value === "kilo" ? "kilo" : "must",
+          url: normalizeUrl(linkInput.value),
+          title: normalizeUrl(titleInput.value),
+          cover: normalizeCover(coverInput.value),
+          reason: normalizeUrl(reasonInput.value),
+          createdAt: new Date().toISOString(),
+        };
+
+        if (!item.url) {
+          showStatus("请先输入视频链接。", true);
+          return;
+        }
+        if (!item.title) {
+          showStatus("请先抓取或填写标题。", true);
+          return;
+        }
+
+        const next = [item, ...readCustom()].slice(0, 60);
+        writeCustom(next);
+        renderCustomCards();
+        renderAdminList();
+        showStatus("保存成功，页面已更新。");
+      };
+
+      openBtn.addEventListener("click", openModal);
+      closeBtn.addEventListener("click", closeModal);
+      cancelBtn.addEventListener("click", closeModal);
+      fetchBtn.addEventListener("click", fetchMeta);
+      saveBtn.addEventListener("click", saveEntry);
+      coverInput.addEventListener("input", syncCoverPreview);
+
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) closeModal();
+      });
+
+      renderCustomCards();
+    })();
+  </script>
 
   <style lang="scss">
   @use "../styles/mixins" as m;
@@ -61,23 +403,170 @@ const fanworks = (await getCollection("fanworks")).filter((x) => x.data.tags.inc
     padding: 14px 14px;
     display: block;
   }
+  .cover{
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.14);
+    margin: 8px 0 10px;
+    display: block;
+  }
   .t{ font-weight: 700; margin-bottom: 6px; }
   .d{ color: rgba(255,255,255,.65); font-size: 13px; min-height: 34px; }
-  .meta{ display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 8px; }
-  .pill{
-    padding: 4px 8px;
+
+  .admin-bar{
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+  }
+  .admin-btn{
+    border: 1px solid rgba(255,255,255,.16);
     border-radius: 999px;
+    background: rgba(20,20,30,.5);
+    color: rgba(255,255,255,.9);
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  }
+  .admin-btn:hover{
+    border-color: rgba(255,255,255,.32);
+    background: rgba(40,40,60,.64);
+  }
+  .admin-btn.primary{
+    background: rgba(74, 206, 148, .2);
+    border-color: rgba(74, 206, 148, .5);
+    color: rgba(224,255,241,.98);
+  }
+
+  .admin-modal{
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    background: rgba(0,0,0,.56);
+    padding: 16px;
+  }
+  .admin-panel{
+    width: min(760px, 100%);
+    max-height: min(86vh, 900px);
+    overflow: auto;
+    border-radius: 20px;
+    padding: 16px;
+    @include m.glass;
+  }
+  .admin-head{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .admin-head h3{
+    margin: 0;
+    font-size: 18px;
+  }
+  .admin-close{
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(0,0,0,.3);
+    color: rgba(255,255,255,.9);
+    cursor: pointer;
+  }
+  .admin-grid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .field{
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field.full{ grid-column: 1 / -1; }
+  .field span{
     font-size: 12px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.18);
     color: rgba(255,255,255,.78);
   }
-  .pill.faint{ color: rgba(255,255,255,.62); }
-  .inline{
+  .field input,
+  .field textarea,
+  .field select{
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(0,0,0,.34);
+    color: rgba(255,255,255,.92);
+    padding: 10px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .field textarea{
+    resize: vertical;
+    min-height: 76px;
+  }
+  .field.actions{
+    justify-content: flex-end;
+  }
+  .cover-preview{
+    width: 100%;
+    max-width: 320px;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.2);
+  }
+  .admin-status{
+    min-height: 20px;
+    margin: 12px 0 0;
     color: rgba(255,255,255,.86);
-    text-decoration: underline;
-    text-decoration-color: rgba(255,255,255,.28);
-    text-underline-offset: 3px;
+    font-size: 13px;
+  }
+  .admin-status.err{
+    color: rgb(255 171 171);
+  }
+  .admin-actions{
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .admin-list{
+    margin-top: 12px;
+    border-top: 1px solid rgba(255,255,255,.14);
+    padding-top: 12px;
+  }
+  .admin-list-title{
+    font-size: 13px;
+    color: rgba(255,255,255,.72);
+    margin-bottom: 6px;
+  }
+  .admin-item{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px dashed rgba(255,255,255,.12);
+  }
+  .admin-item .meta{
+    color: rgba(255,255,255,.72);
+    font-size: 12px;
+  }
+  .admin-delete{
+    border: 1px solid rgba(255, 163, 163, .45);
+    background: rgba(120, 20, 20, .22);
+    color: rgba(255,220,220,.96);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  @media (max-width: 720px){
+    .admin-grid{
+      grid-template-columns: 1fr;
+    }
   }
   </style>
 </BaseLayout>

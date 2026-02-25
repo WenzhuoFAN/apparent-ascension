@@ -5,10 +5,10 @@ const { title, tagline, note } = Astro.props;
   <div class="left">
     <h1 class="h1">{title}</h1>
     <p class="lead">{tagline}</p>
-    <p class="note">{note}</p>
+    {note && <p class="note">{note}</p>}
     <div class="cta">
       <a class="btn primary" href="/start">从这里入坑</a>
-      <a class="btn" href="/schedule">看本周排班</a>
+      <a class="btn" href="/schedule">看本周日程表</a>
       <a class="btn" href="/library">翻精选内容</a>
     </div>
   </div>

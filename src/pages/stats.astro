@@ -15,22 +15,50 @@ const rows = metrics
     return (a.capturedAt ?? "").localeCompare(b.capturedAt ?? "");
   });
 
-function spark(points: { x: number; y: number }[], w = 520, h = 140, pad = 10) {
+type StatPoint = { x: number; y: number; date: string };
+
+function shortDate(dateStr: string) {
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return dateStr;
+  return `${parts[1]}-${parts[2]}`;
+}
+
+function spark(points: StatPoint[], w = 520, h = 180, padLeft = 52, padRight = 16, padTop = 12, padBottom = 34) {
   if (!points.length) return "";
-  const xs = points.map((p) => p.x);
-  const ys = points.map((p) => p.y);
+  const sorted = points.slice().sort((a, b) => a.x - b.x);
+  const xs = sorted.map((p) => p.x);
+  const ys = sorted.map((p) => p.y);
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
   const dx = maxX - minX || 1;
   const dy = maxY - minY || 1;
-  const toX = (x: number) => pad + ((x - minX) / dx) * (w - pad * 2);
-  const toY = (y: number) => h - pad - ((y - minY) / dy) * (h - pad * 2);
-  const d = points.map((p, i) => `${i === 0 ? "M" : "L"} ${toX(p.x).toFixed(1)} ${toY(p.y).toFixed(1)}`).join(" ");
-  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" aria-hidden="true">
-    <path d="${d}" fill="none" stroke="rgba(255,255,255,.72)" stroke-width="2.2" stroke-linecap="round" />
-    <path d="${d} L ${w - pad} ${h - pad} L ${pad} ${h - pad} Z" fill="rgba(255,255,255,.07)" stroke="none" />
+  const plotLeft = padLeft;
+  const plotRight = w - padRight;
+  const plotTop = padTop;
+  const plotBottom = h - padBottom;
+  const plotWidth = plotRight - plotLeft;
+  const plotHeight = plotBottom - plotTop;
+  const toX = (x: number) => plotLeft + ((x - minX) / dx) * plotWidth;
+  const toY = (y: number) => plotBottom - ((y - minY) / dy) * plotHeight;
+  const d = sorted.map((p, i) => `${i === 0 ? "M" : "L"} ${toX(p.x).toFixed(1)} ${toY(p.y).toFixed(1)}`).join(" ");
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  const areaD = `${d} L ${toX(last.x).toFixed(1)} ${plotBottom.toFixed(1)} L ${toX(first.x).toFixed(1)} ${plotBottom.toFixed(1)} Z`;
+  const axisMidY = (plotTop + plotBottom) / 2;
+
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="横坐标日期，纵坐标粉丝数">
+    <line x1="${plotLeft}" y1="${plotBottom}" x2="${plotRight}" y2="${plotBottom}" stroke="rgba(255,255,255,.24)" stroke-width="1" />
+    <line x1="${plotLeft}" y1="${plotTop}" x2="${plotLeft}" y2="${plotBottom}" stroke="rgba(255,255,255,.24)" stroke-width="1" />
+    <path d="${areaD}" fill="rgba(255,255,255,.07)" stroke="none" />
+    <path d="${d}" fill="none" stroke="rgba(255,255,255,.78)" stroke-width="2.2" stroke-linecap="round" />
+    <text x="${plotLeft}" y="${h - 8}" fill="rgba(255,255,255,.60)" font-size="10">${shortDate(first.date)}</text>
+    <text x="${plotRight}" y="${h - 8}" text-anchor="end" fill="rgba(255,255,255,.60)" font-size="10">${shortDate(last.date)}</text>
+    <text x="${(plotLeft + plotRight) / 2}" y="${h - 8}" text-anchor="middle" fill="rgba(255,255,255,.66)" font-size="11">日期</text>
+    <text x="${plotLeft - 6}" y="${plotTop + 4}" text-anchor="end" fill="rgba(255,255,255,.60)" font-size="10">${maxY.toLocaleString()}</text>
+    <text x="${plotLeft - 6}" y="${plotBottom + 4}" text-anchor="end" fill="rgba(255,255,255,.60)" font-size="10">${minY.toLocaleString()}</text>
+    <text x="15" y="${axisMidY}" transform="rotate(-90 15 ${axisMidY})" text-anchor="middle" fill="rgba(255,255,255,.66)" font-size="11">粉丝数</text>
   </svg>`;
 }
 
@@ -49,8 +77,45 @@ function dateToX(dateStr: string) {
   return Math.floor(dt.getTime() / 86400000);
 }
 
-const fionaPts = byMember("fiona").map((r) => ({ x: dateToX(r.date), y: r.followers }));
-const gladysPts = byMember("gladys").map((r) => ({ x: dateToX(r.date), y: r.followers }));
+const gladysPts = byMember("gladys").map((r) => ({ x: dateToX(r.date), y: r.followers, date: r.date }));
+const fionaPtsWithDate = byMember("fiona").map((r) => ({ x: dateToX(r.date), y: r.followers, date: r.date }));
+
+const dailyByMember = new Map<"fiona" | "gladys" | "both", Map<string, number>>();
+for (const row of rows) {
+  if (!dailyByMember.has(row.member)) dailyByMember.set(row.member, new Map());
+  dailyByMember.get(row.member)?.set(row.date, row.followers);
+}
+
+const deltaByMemberDate = new Map<string, number | null>();
+for (const [member, daily] of dailyByMember) {
+  const dates = [...daily.keys()].sort((a, b) => a.localeCompare(b));
+  for (let i = 0; i < dates.length; i += 1) {
+    const date = dates[i];
+    if (i === 0) {
+      deltaByMemberDate.set(`${member}|${date}`, null);
+      continue;
+    }
+    const prevDate = dates[i - 1];
+    const delta = (daily.get(date) ?? 0) - (daily.get(prevDate) ?? 0);
+    deltaByMemberDate.set(`${member}|${date}`, delta);
+  }
+}
+
+const rowsWithDelta = rows.map((r) => ({
+  ...r,
+  delta: deltaByMemberDate.get(`${r.member}|${r.date}`) ?? null,
+}));
+
+function formatDelta(delta: number | null) {
+  if (delta === null) return "—";
+  if (delta === 0) return "0";
+  return delta > 0 ? `+${delta.toLocaleString()}` : delta.toLocaleString();
+}
+
+function deltaClass(delta: number | null) {
+  if (delta === null || delta === 0) return "flat";
+  return delta > 0 ? "up" : "down";
+}
 ---
 <BaseLayout title="粉丝数据｜闪耀舞台" description="粉丝数量与成长记录快照">
   <NavBar slot="nav" active="stats" />
@@ -59,7 +124,7 @@ const gladysPts = byMember("gladys").map((r) => ({ x: dateToX(r.date), y: r.foll
     <div class="grid cols-2">
       <div class="panel">
         <div class="pt">心宜</div>
-        <div class="svg" set:html={spark(fionaPts)} />
+        <div class="svg" set:html={spark(fionaPtsWithDate)} />
       </div>
       <div class="panel">
         <div class="pt">思诺</div>
@@ -68,24 +133,26 @@ const gladysPts = byMember("gladys").map((r) => ({ x: dateToX(r.date), y: r.foll
     </div>
   </Section>
 
-  <Section title="快照列表">
+  <div class="table-wrap">
     <div class="table">
       <div class="tr th">
         <div>日期</div>
         <div>成员</div>
         <div>粉丝数</div>
+        <div>较昨日</div>
       </div>
-      {rows.slice().reverse().map((r) => (
+      {rowsWithDelta.slice().reverse().map((r) => (
         <div class="tr">
           <div class="muted">{formatDateCN(r.date)}</div>
           <div><span class="pill">{memberName(r.member)}</span></div>
           <div class="num">{r.followers.toLocaleString()}</div>
+          <div class:list={["delta", deltaClass(r.delta)]}>{formatDelta(r.delta)}</div>
         </div>
       ))}
     </div>
 
     {!rows.length && <p class="p">还没有 metrics 数据。去 src/content/metrics/all.json 填写，或运行 npm run fetch:metrics。</p>}
-  </Section>
+  </div>
 
   <style lang="scss">
     @use "../styles/mixins" as m;
@@ -103,6 +170,9 @@ const gladysPts = byMember("gladys").map((r) => ({ x: dateToX(r.date), y: r.foll
       display: block;
     }
 
+    .table-wrap {
+      margin-top: 18px;
+    }
     .table {
       @include m.glass;
       border-radius: var(--r-lg);
@@ -110,7 +180,7 @@ const gladysPts = byMember("gladys").map((r) => ({ x: dateToX(r.date), y: r.foll
     }
     .tr {
       display: grid;
-      grid-template-columns: 140px 90px 1fr;
+      grid-template-columns: 140px 90px minmax(120px, 1fr) minmax(90px, 0.8fr);
       gap: 10px;
       padding: 10px 12px;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -129,6 +199,18 @@ const gladysPts = byMember("gladys").map((r) => ({ x: dateToX(r.date), y: r.foll
     }
     .num {
       font-variant-numeric: tabular-nums;
+    }
+    .delta {
+      font-variant-numeric: tabular-nums;
+    }
+    .delta.up {
+      color: #9df2b7;
+    }
+    .delta.down {
+      color: #ffb0b7;
+    }
+    .delta.flat {
+      color: rgba(255, 255, 255, 0.6);
     }
     .pill {
       display: inline-block;

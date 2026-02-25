@@ -37,6 +37,7 @@ const recBase = z.object({
   title: z.string(),
   author: z.string().optional(),
   url: z.string().url(),
+  cover: z.string().url().optional(),
   member: memberEnum,
   platform: z.string().default("bilibili"),
   reason: z.string().optional(),

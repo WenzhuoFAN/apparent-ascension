@@ -9,7 +9,11 @@
     "start": "serve dist -l $PORT",
     "heroku-postbuild": "npm run build",
     "astro": "astro",
-    "fetch:metrics": "node scripts/fetch-metrics.mjs"
+    "fetch:metrics": "node scripts/fetch-metrics.mjs",
+    "set:bili-cookie": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/set-bili-cookie-from-curl.ps1",
+    "extract:schedule:image": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/extract-schedule-from-image.ps1",
+    "fetch:schedule:image": "node scripts/fetch-pinned-schedule-image.mjs",
+    "update:schedule:from-pinned": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-schedule-from-pinned.ps1"
   },
   "dependencies": {
     "astro": "^5.17.1",

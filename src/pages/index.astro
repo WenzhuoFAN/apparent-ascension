@@ -3,7 +3,6 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import NavBar from "../components/NavBar.astro";
 import Hero from "../components/Hero.astro";
 import Section from "../components/Section.astro";
-import Card from "../components/Card.astro";
 import TagPills from "../components/TagPills.astro";
 
 import { getCollection } from "astro:content";
@@ -30,27 +29,15 @@ const latestRecs = [...clips, ...fanworks]
   .slice(0, 6);
 ---
 
-<BaseLayout title="闪耀舞台｜非官方粉丝站" description="入坑导航｜排班｜直播记录｜数据｜精选二创/切片">
+<BaseLayout title="闪耀舞台｜非官方粉丝站" description="入坑导航｜日程表｜直播记录｜数据｜精选二创/切片">
   <NavBar slot="nav" active="home" />
 
   <Hero
     title="闪耀舞台 · 粉丝导航站"
-    tagline="给新粉一条最短的入坑路，也给老粉一个每周必看的信息入口：排班、直播记录、数据成长、精选二创/切片。"
-    note="提示：把你的背景海报放到 public/hero/poster.jpg（或在 styles/_tokens.scss 里改路径）。"
+    tagline="给新粉一条最短的入坑路，也给老粉一个每周必看的信息入口：日程表、直播记录、数据成长、精选二创/切片。"
   />
 
-  <Section title="快速入口" subtitle="先把骨架搭稳，后面全是填内容。">
-    <div class="grid cols-3">
-      <Card href="/start" title="入坑导航" desc="新粉 3 步路线：先看什么、再看什么、补课清单。" icon="🧭" />
-      <Card href="/schedule" title="本周排班" desc="一眼看懂本周/下周直播安排。" icon="🗓️" />
-      <Card href="/library" title="精选库" desc="优秀二创 / 切片 / 回放推荐，带标签筛选。" icon="✨" />
-      <Card href="/streams" title="直播记录" desc="每场直播：亮点摘要、回放链接、关联切片。" icon="📼" />
-      <Card href="/stats" title="数据" desc="粉丝数与成长记录（先手动快照，后续再自动化）。" icon="📈" />
-      <Card href="/members/fiona" title="成员页" desc="心宜 / 思诺：人设关键词、观看推荐、常用链接。" icon="🫧" />
-    </div>
-  </Section>
-
-  <Section title="排班预览" subtitle="（示例）显示最近 3 场。你每周新增一个 schedule 文件就行。">
+  <Section title="日程表预览">
     {upcoming.length ? (
       <div class="grid">
         {upcoming.map((it) => (
@@ -75,11 +62,11 @@ const latestRecs = [...clips, ...fanworks]
         ))}
       </div>
     ) : (
-      <p class="p">还没有排班数据。去 src/content/schedule 新建一个文件吧～</p>
+      <p class="p">还没有日程表数据。去 src/content/schedule 新建一个文件吧～</p>
     )}
   </Section>
 
-  <Section title="最新推荐" subtitle="（示例）从切片+二创里按 createdAt 取最新 6 条。">
+  <Section title="最新推荐">
     <div class="grid cols-3">
       {latestRecs.map((r) => (
         <a class="rec" href={r.data.url} target="_blank" rel="noreferrer" data-member={r.data.member} data-tags={r.data.tags.join(",")}>

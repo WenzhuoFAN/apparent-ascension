@@ -14,11 +14,11 @@ const weeks = scheduleEntries
 
 const allTags = Array.from(new Set(weeks.flatMap(w => w.items.flatMap(i => (i.type ? i.type.split("/").map(s=>s.trim()) : []))))).filter(Boolean).slice(0, 20);
 ---
-<BaseLayout title="排班｜闪耀舞台" description="每周直播排班（本周/下周）">
+<BaseLayout title="日程表｜闪耀舞台" description="每周直播日程表（本周/下周）">
   <NavBar slot="nav" active="schedule" />
 
-  <h1 class="h1">每周直播排班 🗓️</h1>
-  <p class="p">排班先手动维护最稳：每周新增一个 schedule 文件即可。链接没有也没关系，后补就行。</p>
+  <h1 class="h1">每周直播日程表 🗓️</h1>
+  <p class="p">日程表先手动维护最稳：每周新增一个 schedule 文件即可。链接没有也没关系，后补就行。</p>
 
   <FilterChips tags={allTags} targetSelector='[data-filter-item]' />
 
@@ -51,7 +51,7 @@ const allTags = Array.from(new Set(weeks.flatMap(w => w.items.flatMap(i => (i.ty
     </Section>
   ))}
 
-  {!weeks.length && <p class="p">还没有排班数据。去 src/content/schedule 新建一个文件吧～</p>}
+  {!weeks.length && <p class="p">还没有日程表数据。去 src/content/schedule 新建一个文件吧～</p>}
 
   <style lang="scss">
   @use "../styles/mixins" as m;
