@@ -6,14 +6,15 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "start": "astro preview --host 0.0.0.0 --port $PORT",
+    "start": "serve -s dist -l $PORT",
     "heroku-postbuild": "npm run build",
     "astro": "astro",
     "fetch:metrics": "node scripts/fetch-metrics.mjs"
   },
   "dependencies": {
     "astro": "^5.17.1",
-    "sass": "^1.97.3"
+    "sass": "^1.97.3",
+    "serve": "^14.2.5"
   },
   "engines": {
     "node": "20.x || 22.x"
