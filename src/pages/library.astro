@@ -1,0 +1,70 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import NavBar from "../components/NavBar.astro";
+import Section from "../components/Section.astro";
+import FilterChips from "../components/FilterChips.astro";
+import TagPills from "../components/TagPills.astro";
+
+import { getCollection } from "astro:content";
+
+const clips = await getCollection("clips");
+const fanworks = await getCollection("fanworks");
+const all = [...clips.map(x=>({ ...x, kind: "clips" })), ...fanworks.map(x=>({ ...x, kind: "fanworks" }))];
+
+const items = all.sort((a, b) => (b.data.createdAt ?? "").localeCompare(a.data.createdAt ?? ""));
+const tags = Array.from(new Set(items.flatMap(i => i.data.tags))).filter(Boolean).slice(0, 30);
+---
+<BaseLayout title="精选库｜闪耀舞台" description="优秀切片/二创/回放推荐，带标签筛选">
+  <NavBar slot="nav" active="library" />
+
+  <h1 class="h1">精选内容库 ✨</h1>
+  <p class="p">这里是“传播力”最强的模块：每条内容都带一句推荐理由 + 标签，方便新粉快速吃到精华。</p>
+
+  <FilterChips tags={tags} targetSelector='[data-filter-item]' />
+
+  <Section title="全部推荐" subtitle="切片 + 二创（示例）按 createdAt 倒序。">
+    <div class="grid cols-3">
+      {items.map((r) => (
+        <a class="rec" href={r.data.url} target="_blank" rel="noreferrer"
+          data-filter-item
+          data-member={r.data.member}
+          data-tags={r.data.tags.join(",")}
+        >
+          <div class="rt">{r.data.title}</div>
+          <div class="rd">{r.data.reason ?? ""}</div>
+          <div class="meta">
+            <span class="pill">{r.data.member}</span>
+            <span class="pill faint">{r.kind}</span>
+            {r.data.author && <span class="pill faint">{r.data.author}</span>}
+          </div>
+          <TagPills tags={r.data.tags.slice(0, 6)} />
+        </a>
+      ))}
+    </div>
+
+    {!items.length && <p class="p">还没有任何推荐条目。去 src/content/clips 或 src/content/fanworks 新建几个吧～</p>}
+  </Section>
+
+  <style lang="scss">
+  @use "../styles/mixins" as m;
+  .rec{
+    @include m.glass;
+    @include m.hover-float;
+    border-radius: var(--r-lg);
+    padding: 14px 14px;
+    display: block;
+  }
+  .rt{ font-weight: 700; margin-bottom: 6px; }
+  .rd{ color: rgba(255,255,255,.65); font-size: 13px; min-height: 34px; }
+  .meta{ display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 8px; }
+  .pill{
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.18);
+    color: rgba(255,255,255,.78);
+  }
+  .pill.faint{ color: rgba(255,255,255,.62); }
+  </style>
+</BaseLayout>

@@ -1,0 +1,149 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import NavBar from "../components/NavBar.astro";
+import Section from "../components/Section.astro";
+
+import { getCollection } from "astro:content";
+import { formatDateCN } from "../utils/date";
+
+const metrics = await getCollection("metrics");
+const rows = metrics
+  .flatMap((m) => m.data)
+  .sort((a, b) => {
+    const byDate = a.date.localeCompare(b.date);
+    if (byDate !== 0) return byDate;
+    return (a.capturedAt ?? "").localeCompare(b.capturedAt ?? "");
+  });
+
+function spark(points: { x: number; y: number }[], w = 520, h = 140, pad = 10) {
+  if (!points.length) return "";
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const dx = maxX - minX || 1;
+  const dy = maxY - minY || 1;
+  const toX = (x: number) => pad + ((x - minX) / dx) * (w - pad * 2);
+  const toY = (y: number) => h - pad - ((y - minY) / dy) * (h - pad * 2);
+  const d = points.map((p, i) => `${i === 0 ? "M" : "L"} ${toX(p.x).toFixed(1)} ${toY(p.y).toFixed(1)}`).join(" ");
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" aria-hidden="true">
+    <path d="${d}" fill="none" stroke="rgba(255,255,255,.72)" stroke-width="2.2" stroke-linecap="round" />
+    <path d="${d} L ${w - pad} ${h - pad} L ${pad} ${h - pad} Z" fill="rgba(255,255,255,.07)" stroke="none" />
+  </svg>`;
+}
+
+const byMember = (m: "fiona" | "gladys" | "both") => rows.filter((r) => r.member === m);
+
+function memberName(member: "fiona" | "gladys" | "both") {
+  if (member === "fiona") return "心宜";
+  if (member === "gladys") return "思诺";
+  return "双人";
+}
+
+function dateToX(dateStr: string) {
+  // YYYY-MM-DD -> day index
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return Math.floor(dt.getTime() / 86400000);
+}
+
+const fionaPts = byMember("fiona").map((r) => ({ x: dateToX(r.date), y: r.followers }));
+const gladysPts = byMember("gladys").map((r) => ({ x: dateToX(r.date), y: r.followers }));
+---
+<BaseLayout title="粉丝数据｜闪耀舞台" description="粉丝数量与成长记录快照">
+  <NavBar slot="nav" active="stats" />
+
+  <Section title="粉丝数趋势">
+    <div class="grid cols-2">
+      <div class="panel">
+        <div class="pt">心宜</div>
+        <div class="svg" set:html={spark(fionaPts)} />
+      </div>
+      <div class="panel">
+        <div class="pt">思诺</div>
+        <div class="svg" set:html={spark(gladysPts)} />
+      </div>
+    </div>
+  </Section>
+
+  <Section title="快照列表">
+    <div class="table">
+      <div class="tr th">
+        <div>日期</div>
+        <div>成员</div>
+        <div>粉丝数</div>
+      </div>
+      {rows.slice().reverse().map((r) => (
+        <div class="tr">
+          <div class="muted">{formatDateCN(r.date)}</div>
+          <div><span class="pill">{memberName(r.member)}</span></div>
+          <div class="num">{r.followers.toLocaleString()}</div>
+        </div>
+      ))}
+    </div>
+
+    {!rows.length && <p class="p">还没有 metrics 数据。去 src/content/metrics/all.json 填写，或运行 npm run fetch:metrics。</p>}
+  </Section>
+
+  <style lang="scss">
+    @use "../styles/mixins" as m;
+
+    .panel {
+      @include m.glass;
+      border-radius: var(--r-lg);
+      padding: 12px 12px;
+    }
+    .pt {
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .svg :global(svg) {
+      display: block;
+    }
+
+    .table {
+      @include m.glass;
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+    .tr {
+      display: grid;
+      grid-template-columns: 140px 90px 1fr;
+      gap: 10px;
+      padding: 10px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      align-items: center;
+    }
+    .tr.th {
+      border-top: 0;
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.65);
+      letter-spacing: 0.3px;
+    }
+    .muted {
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 13px;
+    }
+    .num {
+      font-variant-numeric: tabular-nums;
+    }
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.18);
+      color: rgba(255, 255, 255, 0.78);
+    }
+
+    @media (max-width: 860px) {
+      .tr {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</BaseLayout>

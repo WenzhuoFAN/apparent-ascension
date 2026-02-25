@@ -1,0 +1,128 @@
+---
+/**
+ * Client-side filter for a list of cards rendered on the page.
+ * Expectations:
+ *  - Each item has: data-tags="a,b,c" data-member="fiona|gladys|both"
+ *  - Filter controls rendered by this component
+ */
+const { tags = [], members = ["all","fiona","gladys","both"], targetSelector = "[data-filter-item]" } = Astro.props;
+---
+<div class="filters" data-filter-root data-target-selector={targetSelector}>
+  <div class="row">
+    <div class="label">成员</div>
+    <div class="chips">
+      {members.map((m) => (
+        <button class="chip" type="button" data-member={m}>{m === "all" ? "全部" : m}</button>
+      ))}
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="label">标签</div>
+    <div class="chips">
+      <button class="chip" type="button" data-tag="__all">全部</button>
+      {tags.map((t) => (
+        <button class="chip" type="button" data-tag={t}>#{t}</button>
+      ))}
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+(() => {
+  const root = document.querySelector('[data-filter-root]');
+  if (!root) return;
+
+  const itemSelector = root.getAttribute('data-target-selector') || '[data-filter-item]';
+  const items = Array.from(document.querySelectorAll(itemSelector));
+
+  let selectedMember = 'all';
+  let selectedTag = '__all';
+
+  function apply(){
+    for (const el of items){
+      const member = el.getAttribute('data-member') || 'both';
+      const tags = (el.getAttribute('data-tags') || '').split(',').map(s => s.trim()).filter(Boolean);
+
+      const okMember = (selectedMember === 'all') || (member === selectedMember);
+      const okTag = (selectedTag === '__all') || tags.includes(selectedTag);
+
+      el.style.display = (okMember && okTag) ? '' : 'none';
+    }
+  }
+
+  function setActive(selector, value){
+    const btns = root.querySelectorAll(selector);
+    btns.forEach(b => b.classList.toggle('active', b.getAttribute(value.startsWith('data-') ? value : '') ));
+  }
+
+  root.addEventListener('click', (e) => {
+    const t = e.target;
+    if (!(t instanceof HTMLElement)) return;
+
+    const member = t.getAttribute('data-member');
+    if (member){
+      selectedMember = member;
+      root.querySelectorAll('[data-member]').forEach(b => b.classList.toggle('active', b.getAttribute('data-member') === selectedMember));
+      apply();
+      return;
+    }
+
+    const tag = t.getAttribute('data-tag');
+    if (tag){
+      selectedTag = tag;
+      root.querySelectorAll('[data-tag]').forEach(b => b.classList.toggle('active', b.getAttribute('data-tag') === selectedTag));
+      apply();
+      return;
+    }
+  });
+
+  // init
+  root.querySelector('[data-member="all"]')?.classList.add('active');
+  root.querySelector('[data-tag="__all"]')?.classList.add('active');
+  apply();
+})();
+</script>
+
+<style lang="scss">
+@use "../styles/mixins" as m;
+
+.filters{
+  @include m.glass;
+  border-radius: var(--r-lg);
+  padding: 12px 12px;
+  margin: 10px 0 14px;
+}
+.row{
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 10px;
+  align-items: start;
+  margin-bottom: 10px;
+}
+.row:last-child{ margin-bottom: 0; }
+
+.label{
+  font-size: 12px;
+  color: rgba(255,255,255,.65);
+  padding-top: 6px;
+}
+.chips{ display: flex; flex-wrap: wrap; gap: 8px; }
+.chip{
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.14);
+  color: rgba(255,255,255,.78);
+  font-size: 12px;
+  cursor: pointer;
+  transition: transform var(--dur) var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.chip:hover{ transform: translateY(-1px); background: rgba(0,0,0,.22); }
+.chip.active{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.16);
+  color: rgba(255,255,255,.92);
+}
+.chip:focus-visible{ @include m.focus-ring; }
+</style>

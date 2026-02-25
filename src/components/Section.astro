@@ -1,11 +1,15 @@
 ---
-const { id, eyebrow, title, desc } = Astro.props;
+const { title, subtitle } = Astro.props;
 ---
-<section class="section" id={id}>
-  <div class="container" data-reveal>
-    <p class="eyebrow">{eyebrow}</p>
+<section class="sec">
+  <div class="head">
     <h2 class="h2">{title}</h2>
-    <p class="lead">{desc}</p>
-    <slot />
+    {subtitle && <p class="p">{subtitle}</p>}
   </div>
+  <slot />
 </section>
+
+<style lang="scss">
+.sec{ margin-top: 18px; }
+.head{ margin-bottom: 12px; }
+</style>

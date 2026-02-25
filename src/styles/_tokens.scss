@@ -1,0 +1,27 @@
+:root{
+  /* Brand / theme */
+  --bg-image: url("/hero/poster.jpg");
+  --bg-pos: 70% 35%; /* 👈调这个：把人物脸对准右侧窗口 */
+  --bg-dim: 0.42;    /* 👈整体暗度：0.38~0.50 之间最舒服 */
+  --ink: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.70);
+  --faint: rgba(255,255,255,.55);
+
+  /* Glass */
+  --glass-bg: rgba(16, 18, 24, .26);
+  --glass-border: rgba(255,255,255,.10);
+  --glass-shadow: 0 18px 60px rgba(0,0,0,.40);
+
+  /* Radii */
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 24px;
+
+  /* Layout */
+  --container: 1080px;
+  --pad: 20px;
+
+  /* Motion */
+  --ease: cubic-bezier(.2,.8,.2,1);
+  --dur: 520ms;
+}

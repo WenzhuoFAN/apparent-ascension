@@ -1,7 +1,41 @@
 ---
-const { title, desc } = Astro.props;
+const { href, title, desc, icon = "✦" } = Astro.props;
 ---
-<article class="card" data-reveal>
-  <div class="title">{title}</div>
-  <p class="desc">{desc}</p>
-</article>
+<a class="card" href={href}>
+  <div class="top">
+    <div class="ico" aria-hidden="true">{icon}</div>
+    <div class="t">{title}</div>
+  </div>
+  <div class="d">{desc}</div>
+</a>
+
+<style lang="scss">
+@use "../styles/mixins" as m;
+.card{
+  @include m.glass;
+  @include m.hover-float;
+  display: block;
+  border-radius: var(--r-lg);
+  padding: 16px 16px;
+  cursor: pointer;
+}
+.top{
+  display: flex; gap: 10px; align-items: center;
+  margin-bottom: 8px;
+}
+.ico{
+  width: 34px; height: 34px;
+  border-radius: 12px;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.10);
+}
+.t{
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+.d{
+  font-size: 13px;
+  color: rgba(255,255,255,.68);
+}
+</style>

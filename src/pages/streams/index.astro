@@ -1,0 +1,95 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import NavBar from "../../components/NavBar.astro";
+import Section from "../../components/Section.astro";
+import FilterChips from "../../components/FilterChips.astro";
+import TagPills from "../../components/TagPills.astro";
+
+import { getCollection } from "astro:content";
+import { formatDateCN } from "../../utils/date";
+
+const streams = await getCollection("streams");
+const items = streams.sort((a, b) => b.data.date.localeCompare(a.data.date));
+const tags = Array.from(new Set(items.flatMap(i => i.data.tags))).filter(Boolean).slice(0, 30);
+---
+<BaseLayout title="直播记录｜闪耀舞台" description="每场直播的摘要、回放、关联切片/二创">
+  <NavBar slot="nav" active="streams" />
+
+  <h1 class="h1">直播记录 📼</h1>
+  <p class="p">把每场直播“资产化”：以后查回放、找高光、做安利，都从这里来。</p>
+
+  <FilterChips tags={tags} targetSelector='[data-filter-item]' />
+
+  <Section title="全部直播" subtitle="按日期倒序（示例）。">
+    <div class="list">
+      {items.map((s) => (
+        <a class="row" href={`/streams/${s.slug}`} data-filter-item data-member={s.data.member} data-tags={s.data.tags.join(",")}>
+          <div class="when">{formatDateCN(s.data.date)}</div>
+          <div class="what">
+            <div class="t">{s.data.title}</div>
+            <div class="meta">
+              <span class="pill">{s.data.member}</span>
+              {s.data.durationMin && <span class="pill faint">{s.data.durationMin} min</span>}
+              {s.data.replayUrl ? <span class="pill faint">有回放</span> : <span class="pill faint">回放待补</span>}
+            </div>
+            {s.data.highlights?.length ? (
+              <div class="hl">亮点：{s.data.highlights.slice(0,2).join(" / ")}</div>
+            ) : (
+              <div class="hl faint">暂无亮点摘要</div>
+            )}
+            <div style="margin-top: 8px;">
+              <TagPills tags={s.data.tags.slice(0, 6)} />
+            </div>
+          </div>
+          <div class="go">查看</div>
+        </a>
+      ))}
+    </div>
+
+    {!items.length && <p class="p">还没有直播记录。去 src/content/streams 新建一个文件吧～</p>}
+  </Section>
+
+  <style lang="scss">
+  @use "../../styles/mixins" as m;
+
+  .list{ display: grid; gap: 10px; }
+  .row{
+    @include m.glass;
+    @include m.hover-float;
+    border-radius: var(--r-lg);
+    padding: 12px 12px;
+    display: grid;
+    grid-template-columns: 140px 1fr 60px;
+    gap: 12px;
+    align-items: center;
+  }
+  .when{ font-size: 13px; color: rgba(255,255,255,.70); }
+  .t{ font-weight: 800; margin-bottom: 6px; }
+  .meta{ display:flex; gap: 8px; flex-wrap: wrap; }
+  .pill{
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.18);
+    color: rgba(255,255,255,.78);
+  }
+  .pill.faint{ color: rgba(255,255,255,.62); }
+  .hl{ margin-top: 8px; font-size: 13px; color: rgba(255,255,255,.70); }
+  .hl.faint{ color: rgba(255,255,255,.55); }
+  .go{
+    font-size: 12px;
+    justify-self: end;
+    padding: 7px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.14);
+    color: rgba(255,255,255,.80);
+  }
+
+  @media (max-width: 860px){
+    .row{ grid-template-columns: 1fr; }
+    .go{ justify-self: start; }
+  }
+  </style>
+</BaseLayout>

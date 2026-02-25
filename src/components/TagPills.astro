@@ -1,0 +1,18 @@
+---
+const { tags = [] } = Astro.props;
+---
+<div class="tags">
+  {tags.map((t) => <span class="tag">#{t}</span>)}
+</div>
+
+<style lang="scss">
+.tags{ display: flex; gap: 6px; flex-wrap: wrap; }
+.tag{
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: rgba(255,255,255,.72);
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.18);
+}
+</style>

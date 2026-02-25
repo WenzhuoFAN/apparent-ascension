@@ -1,0 +1,132 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import NavBar from "../../components/NavBar.astro";
+import Section from "../../components/Section.astro";
+import TagPills from "../../components/TagPills.astro";
+
+import { getCollection, getEntry } from "astro:content";
+import { formatDateCN } from "../../utils/date";
+
+export async function getStaticPaths() {
+  const all = await getCollection("streams");
+  return all.map((p) => ({ params: { slug: p.slug } }));
+}
+
+const { slug } = Astro.params;
+const entry = await getEntry("streams", slug!);
+if (!entry) throw new Error(`Stream not found: ${slug}`);
+
+const { Content } = await entry.render();
+
+const clipsAll = await getCollection("clips");
+const fanworksAll = await getCollection("fanworks");
+
+const relatedClips = clipsAll.filter(c => entry.data.relatedClips.includes(c.slug));
+const relatedFanworks = fanworksAll.filter(f => entry.data.relatedFanworks.includes(f.slug));
+---
+<BaseLayout title={`${entry.data.title}｜直播记录`} description="直播详情：亮点摘要、回放链接、关联切片/二创">
+  <NavBar slot="nav" active="streams" />
+
+  <a href="/streams" class="back">← 返回直播列表</a>
+
+  <h1 class="h1">{entry.data.title}</h1>
+  <p class="p">
+    日期：{formatDateCN(entry.data.date)} · 成员：{entry.data.member}
+    {entry.data.durationMin && ` · 时长：${entry.data.durationMin} min`}
+  </p>
+
+  <div style="margin-top: 12px;">
+    <TagPills tags={entry.data.tags} />
+  </div>
+
+  <Section title="回放链接">
+    {entry.data.replayUrl ? (
+      <a class="biglink" href={entry.data.replayUrl} target="_blank" rel="noreferrer">{entry.data.replayUrl}</a>
+    ) : (
+      <p class="p">回放链接待补。</p>
+    )}
+  </Section>
+
+  <Section title="亮点摘要">
+    {entry.data.highlights?.length ? (
+      <ul class="ul">
+        {entry.data.highlights.map((h) => <li>{h}</li>)}
+      </ul>
+    ) : (
+      <p class="p">暂无亮点摘要（建议 2~5 条即可，维护成本很低）。</p>
+    )}
+  </Section>
+
+  <Section title="详细记录">
+    <article class="md">
+      <Content />
+    </article>
+  </Section>
+
+  {(relatedClips.length || relatedFanworks.length) && (
+    <Section title="关联内容">
+      <div class="grid cols-2">
+        {relatedClips.map((r) => (
+          <a class="rec" href={r.data.url} target="_blank" rel="noreferrer">
+            <div class="t">{r.data.title}</div>
+            <div class="d">{r.data.reason ?? ""}</div>
+          </a>
+        ))}
+        {relatedFanworks.map((r) => (
+          <a class="rec" href={r.data.url} target="_blank" rel="noreferrer">
+            <div class="t">{r.data.title}</div>
+            <div class="d">{r.data.reason ?? ""}</div>
+          </a>
+        ))}
+      </div>
+    </Section>
+  )}
+
+  <style lang="scss">
+  @use "../../styles/mixins" as m;
+
+  .back{
+    display:inline-block;
+    margin-bottom:10px;
+    color: rgba(255,255,255,.72);
+  }
+  .back:hover{ color: rgba(255,255,255,.88); }
+
+  .biglink{
+    display: inline-block;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.14);
+    word-break: break-all;
+  }
+  .biglink:hover{ background: rgba(0,0,0,.22); }
+
+  .ul{
+    margin: 0;
+    padding-left: 18px;
+    color: rgba(255,255,255,.78);
+  }
+  .ul li{ margin: 6px 0; }
+
+  .md{
+    color: rgba(255,255,255,.78);
+  }
+  .md :global(a){
+    color: rgba(255,255,255,.92);
+    text-decoration: underline;
+    text-decoration-color: rgba(255,255,255,.28);
+    text-underline-offset: 3px;
+  }
+
+  .rec{
+    @include m.glass;
+    @include m.hover-float;
+    border-radius: var(--r-lg);
+    padding: 14px 14px;
+    display: block;
+  }
+  .t{ font-weight: 700; margin-bottom: 6px; }
+  .d{ color: rgba(255,255,255,.65); font-size: 13px; }
+  </style>
+</BaseLayout>

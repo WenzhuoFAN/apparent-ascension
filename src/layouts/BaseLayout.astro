@@ -1,0 +1,33 @@
+---
+const { title = "闪耀舞台｜非官方粉丝站", description = "入坑导航｜排班｜直播记录｜数据｜精选二创/切片" } = Astro.props;
+---
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" href="/favicon.svg" />
+  </head>
+
+  <body>
+    <div class="bg" aria-hidden="true"></div>
+    <div class="shell">
+      <slot name="nav" />
+      <main class="container">
+        <div class="page">
+          <slot />
+        </div>
+      </main>
+      <footer class="container" style="padding-bottom: 26px;">
+        <div style="color: rgba(255,255,255,.55); font-size: 12px;">
+          本站为非官方粉丝站，与官方/运营无隶属关系；内容引用遵循平台规则，侵删联系。
+        </div>
+      </footer>
+    </div>
+    <style is:global lang="scss">
+      @use "../styles/global.scss";
+    </style>
+  </body>
+</html>

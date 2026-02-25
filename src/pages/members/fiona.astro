@@ -1,0 +1,59 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import NavBar from "../../components/NavBar.astro";
+import Section from "../../components/Section.astro";
+import Card from "../../components/Card.astro";
+
+import { getCollection } from "astro:content";
+
+const clips = (await getCollection("clips")).filter(x => x.data.member === "fiona" || x.data.member === "both").slice(0, 6);
+const fanworks = (await getCollection("fanworks")).filter(x => x.data.member === "fiona" || x.data.member === "both").slice(0, 6);
+---
+<BaseLayout title="Fiona（心宜）｜成员页" description="关键词、风格、推荐观看清单、常用链接">
+  <NavBar slot="nav" />
+
+  <h1 class="h1">Fiona（心宜）🫧</h1>
+  <p class="p">这页建议走“关键词 + 推荐清单”路线：信息别太满，但要让新粉一眼知道该看什么。</p>
+
+  <Section title="常用链接">
+    <div class="grid cols-2">
+      <Card href="https://space.bilibili.com/3537115310721181" title="B站主页" desc="关注 / 投稿 / 动态入口" icon="🔗" />
+      <Card href="/schedule" title="去看排班" desc="找到下一场直播" icon="🗓️" />
+    </div>
+  </Section>
+
+  <Section title="人设/风格关键词（占位）" subtitle="你可以慢慢补，这里先给结构。">
+    <ul class="ul">
+      <li>关键词 1：……</li>
+      <li>关键词 2：……</li>
+      <li>关键词 3：……</li>
+    </ul>
+  </Section>
+
+  <Section title="推荐内容（从精选库聚合）" subtitle="展示最近/最适合安利的条目；你也可以以后加“置顶推荐”。">
+    <div class="grid cols-3">
+      {[...fanworks, ...clips].slice(0, 6).map((r) => (
+        <a class="rec" href={r.data.url} target="_blank" rel="noreferrer">
+          <div class="t">{r.data.title}</div>
+          <div class="d">{r.data.reason ?? ""}</div>
+        </a>
+      ))}
+    </div>
+  </Section>
+
+  <style lang="scss">
+  @use "../../styles/mixins" as m;
+  .ul{ margin: 0; padding-left: 18px; color: rgba(255,255,255,.78); }
+  .ul li{ margin: 6px 0; }
+
+  .rec{
+    @include m.glass;
+    @include m.hover-float;
+    border-radius: var(--r-lg);
+    padding: 14px 14px;
+    display: block;
+  }
+  .t{ font-weight: 700; margin-bottom: 6px; }
+  .d{ color: rgba(255,255,255,.65); font-size: 13px; }
+  </style>
+</BaseLayout>

@@ -1,0 +1,96 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import NavBar from "../components/NavBar.astro";
+import Section from "../components/Section.astro";
+import FilterChips from "../components/FilterChips.astro";
+
+import { getCollection } from "astro:content";
+import { formatDateTimeCN } from "../utils/date";
+
+const scheduleEntries = await getCollection("schedule");
+const weeks = scheduleEntries
+  .map((e) => ({ slug: e.slug, ...e.data }))
+  .sort((a, b) => b.weekStart.localeCompare(a.weekStart));
+
+const allTags = Array.from(new Set(weeks.flatMap(w => w.items.flatMap(i => (i.type ? i.type.split("/").map(s=>s.trim()) : []))))).filter(Boolean).slice(0, 20);
+---
+<BaseLayout title="排班｜闪耀舞台" description="每周直播排班（本周/下周）">
+  <NavBar slot="nav" active="schedule" />
+
+  <h1 class="h1">每周直播排班 🗓️</h1>
+  <p class="p">排班先手动维护最稳：每周新增一个 schedule 文件即可。链接没有也没关系，后补就行。</p>
+
+  <FilterChips tags={allTags} targetSelector='[data-filter-item]' />
+
+  {weeks.map((w) => (
+    <Section title={`Week of ${w.weekStart}`} subtitle="按成员/标签筛选（前端即时过滤）。">
+      <div class="list">
+        {w.items
+          .slice()
+          .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())
+          .map((it) => (
+            <div class="row" data-filter-item data-member={it.member} data-tags={(it.type ?? "").split("/").map(s=>s.trim()).filter(Boolean).join(",")}>
+              <div class="when">{formatDateTimeCN(it.startAt)}</div>
+              <div class="what">
+                <div class="t">{it.title}</div>
+                <div class="meta">
+                  <span class="pill">{it.member}</span>
+                  {it.type && it.type.split("/").map((x) => <span class="pill faint">#{x.trim()}</span>)}
+                </div>
+              </div>
+              <div class="go">
+                {it.link ? (
+                  <a class="link" href={it.link} target="_blank" rel="noreferrer">链接</a>
+                ) : (
+                  <span class="muted">待补</span>
+                )}
+              </div>
+            </div>
+          ))}
+      </div>
+    </Section>
+  ))}
+
+  {!weeks.length && <p class="p">还没有排班数据。去 src/content/schedule 新建一个文件吧～</p>}
+
+  <style lang="scss">
+  @use "../styles/mixins" as m;
+
+  .list{ display: grid; gap: 10px; }
+  .row{
+    @include m.glass;
+    border-radius: var(--r-lg);
+    padding: 12px 12px;
+    display: grid;
+    grid-template-columns: 200px 1fr 64px;
+    gap: 12px;
+    align-items: center;
+  }
+  .when{ font-size: 13px; color: rgba(255,255,255,.70); }
+  .t{ font-weight: 700; }
+  .meta{ display:flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .pill{
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.18);
+    color: rgba(255,255,255,.78);
+  }
+  .pill.faint{ color: rgba(255,255,255,.62); }
+  .muted{ color: rgba(255,255,255,.55); font-size: 12px; }
+  .link{
+    font-size: 12px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.14);
+  }
+  .link:hover{ background: rgba(0,0,0,.22); }
+
+  @media (max-width: 860px){
+    .row{ grid-template-columns: 1fr; }
+    .go{ justify-self: start; }
+  }
+  </style>
+</BaseLayout>

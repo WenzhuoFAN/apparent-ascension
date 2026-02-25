@@ -1,0 +1,83 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import NavBar from "../components/NavBar.astro";
+import Section from "../components/Section.astro";
+import TagPills from "../components/TagPills.astro";
+import Card from "../components/Card.astro";
+import { getCollection } from "astro:content";
+
+const mustTag = "入坑必看";
+const clips = (await getCollection("clips")).filter((x) => x.data.tags.includes(mustTag)).slice(0, 6);
+const fanworks = (await getCollection("fanworks")).filter((x) => x.data.tags.includes(mustTag)).slice(0, 6);
+---
+<BaseLayout title="入坑｜闪耀舞台" description="新粉路线：先看什么、再看什么、补课清单">
+  <NavBar slot="nav" active="start" />
+
+  <h1 class="h1">新粉入坑路线 🧭</h1>
+
+  <Section title="先认识她们">
+    <div class="grid cols-2">
+      <Card href="/members/fiona" title="Fiona（心宜）" desc="成员页：关键词、风格、推荐观看清单、常用链接。" icon="🫧" />
+      <Card href="/members/gladys" title="Gladys（思诺）" desc="成员页：关键词、风格、推荐观看清单、常用链接。" icon="🌙" />
+    </div>
+  </Section>
+
+  <Section title="先看 6 条“入坑必看”">
+    <p class="p" style="margin-bottom: 10px;">来自精选库（切片 + 二创）中标记了 <span class="kbd">#{mustTag}</span> 的条目。</p>
+
+    <div class="grid cols-3">
+      {[...clips, ...fanworks].slice(0, 6).map((r) => (
+        <a class="rec" href={r.data.url} target="_blank" rel="noreferrer">
+          <div class="t">{r.data.title}</div>
+          <div class="d">{r.data.reason ?? ""}</div>
+          <div class="meta">
+            <span class="pill">{r.data.member}</span>
+            <span class="pill faint">{r.collection}</span>
+          </div>
+          <TagPills tags={r.data.tags.slice(0, 4)} />
+        </a>
+      ))}
+    </div>
+
+    {!clips.length && !fanworks.length && (
+      <p class="p">你还没标注 “入坑必看” 的推荐条目。去 src/content/clips 或 fanworks 里给 tags 加上它即可。</p>
+    )}
+  </Section>
+
+  <Section title="千克入坑必看">
+    <p class="p">
+      你可以把本站当成每周入口：先看 <a class="inline" href="/schedule">排班</a>，直播结束后补 <a class="inline" href="/streams">记录</a>，
+      看到好切片/二创就丢进 <a class="inline" href="/library">精选库</a>，周末顺手记一下 <a class="inline" href="/stats">粉丝数快照</a>。
+    </p>
+  </Section>
+
+  <style lang="scss">
+  @use "../styles/mixins" as m;
+
+  .rec{
+    @include m.glass;
+    @include m.hover-float;
+    border-radius: var(--r-lg);
+    padding: 14px 14px;
+    display: block;
+  }
+  .t{ font-weight: 700; margin-bottom: 6px; }
+  .d{ color: rgba(255,255,255,.65); font-size: 13px; min-height: 34px; }
+  .meta{ display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 8px; }
+  .pill{
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.18);
+    color: rgba(255,255,255,.78);
+  }
+  .pill.faint{ color: rgba(255,255,255,.62); }
+  .inline{
+    color: rgba(255,255,255,.86);
+    text-decoration: underline;
+    text-decoration-color: rgba(255,255,255,.28);
+    text-underline-offset: 3px;
+  }
+  </style>
+</BaseLayout>

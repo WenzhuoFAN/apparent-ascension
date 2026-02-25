@@ -1,41 +1,154 @@
 ---
-import Layout from "../layouts/Layout.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import NavBar from "../components/NavBar.astro";
 import Hero from "../components/Hero.astro";
 import Section from "../components/Section.astro";
 import Card from "../components/Card.astro";
+import TagPills from "../components/TagPills.astro";
+
+import { getCollection } from "astro:content";
+import { formatDateTimeCN } from "../utils/date";
+
+const scheduleEntries = await getCollection("schedule");
+const schedules = scheduleEntries
+  .map((e) => ({ ...e.data, slug: e.slug }))
+  .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+
+const scheduleItems = schedules.flatMap((w) =>
+  w.items.map((it) => ({
+    ...it,
+    weekStart: w.weekStart,
+  }))
+).sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+
+const upcoming = scheduleItems.slice(0, 3);
+
+const clips = await getCollection("clips");
+const fanworks = await getCollection("fanworks");
+const latestRecs = [...clips, ...fanworks]
+  .sort((a, b) => (b.data.createdAt ?? "").localeCompare(a.data.createdAt ?? ""))
+  .slice(0, 6);
 ---
 
-<Layout title="闪耀舞台 · 粉丝站">
+<BaseLayout title="闪耀舞台｜非官方粉丝站" description="入坑导航｜排班｜直播记录｜数据｜精选二创/切片">
+  <NavBar slot="nav" active="home" />
+
   <Hero
-    title="闪耀舞台"
-    subtitle="一个用于介绍与收录 Fiona（心宜）& Gladys（思诺） 的非官方粉丝站：时间线、作品、活动、切片索引。"
+    title="闪耀舞台 · 粉丝导航站"
+    tagline="给新粉一条最短的入坑路，也给老粉一个每周必看的信息入口：排班、直播记录、数据成长、精选二创/切片。"
+    note="提示：把你的背景海报放到 public/hero/poster.jpg（或在 styles/_tokens.scss 里改路径）。"
   />
 
-  <main>
-    <Section
-      id="start"
-      eyebrow="Start here"
-      title="从这里开始"
-      desc="快速入口：新人入坑、成员介绍、时间线与作品索引。"
-    >
-      <div class="grid">
-        <Card title="新人入坑" desc="推荐观看顺序、常见术语、必看内容合集。" />
-        <Card title="成员介绍" desc="两位成员的档案、代表作与名场面索引。" />
-        <Card title="时间线" desc="按月份整理的重要事件与纪念日节点。" />
-      </div>
-    </Section>
+  <Section title="快速入口" subtitle="先把骨架搭稳，后面全是填内容。">
+    <div class="grid cols-3">
+      <Card href="/start" title="入坑导航" desc="新粉 3 步路线：先看什么、再看什么、补课清单。" icon="🧭" />
+      <Card href="/schedule" title="本周排班" desc="一眼看懂本周/下周直播安排。" icon="🗓️" />
+      <Card href="/library" title="精选库" desc="优秀二创 / 切片 / 回放推荐，带标签筛选。" icon="✨" />
+      <Card href="/streams" title="直播记录" desc="每场直播：亮点摘要、回放链接、关联切片。" icon="📼" />
+      <Card href="/stats" title="数据" desc="粉丝数与成长记录（先手动快照，后续再自动化）。" icon="📈" />
+      <Card href="/members/fiona" title="成员页" desc="心宜 / 思诺：人设关键词、观看推荐、常用链接。" icon="🫧" />
+    </div>
+  </Section>
 
-    <Section
-      id="archive"
-      eyebrow="Archive"
-      title="收录与索引"
-      desc="按标签/系列/平台整理，让你想找的内容一秒定位。"
-    >
+  <Section title="排班预览" subtitle="（示例）显示最近 3 场。你每周新增一个 schedule 文件就行。">
+    {upcoming.length ? (
       <div class="grid">
-        <Card title="作品库" desc="歌曲、Cover、MV、企划作品汇总。" />
-        <Card title="直播/切片" desc="按主题、系列、联动对象归档。" />
-        <Card title="活动/联动" desc="演出、联动、纪念企划集中整理。" />
+        {upcoming.map((it) => (
+          <div class="row">
+            <div class="when">{formatDateTimeCN(it.startAt)}</div>
+            <div class="what">
+              <div class="t">{it.title}</div>
+              <div class="m">
+                <span class="pill">{it.member}</span>
+                {it.type && <span class="pill faint">{it.type}</span>}
+                <span class="pill faint">week {it.weekStart}</span>
+              </div>
+            </div>
+            <div class="go">
+              {it.link ? (
+                <a class="link" href={it.link} target="_blank" rel="noreferrer">链接</a>
+              ) : (
+                <span class="muted">待补</span>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
-    </Section>
-  </main>
-</Layout>
+    ) : (
+      <p class="p">还没有排班数据。去 src/content/schedule 新建一个文件吧～</p>
+    )}
+  </Section>
+
+  <Section title="最新推荐" subtitle="（示例）从切片+二创里按 createdAt 取最新 6 条。">
+    <div class="grid cols-3">
+      {latestRecs.map((r) => (
+        <a class="rec" href={r.data.url} target="_blank" rel="noreferrer" data-member={r.data.member} data-tags={r.data.tags.join(",")}>
+          <div class="rt">{r.data.title}</div>
+          <div class="rd">{r.data.reason ?? ""}</div>
+          <div class="meta">
+            <span class="pill">{r.data.member}</span>
+            <span class="pill faint">{r.collection}</span>
+          </div>
+          <TagPills tags={r.data.tags.slice(0, 3)} />
+        </a>
+      ))}
+    </div>
+  </Section>
+
+  <style lang="scss">
+  @use "../styles/mixins" as m;
+
+  .row{
+    @include m.glass;
+    border-radius: var(--r-lg);
+    padding: 12px 12px;
+    display: grid;
+    grid-template-columns: 180px 1fr 64px;
+    gap: 12px;
+    align-items: center;
+  }
+  .when{ font-size: 13px; color: rgba(255,255,255,.70); }
+  .t{ font-weight: 700; }
+  .m{ display:flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .pill{
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.18);
+    color: rgba(255,255,255,.78);
+  }
+  .pill.faint{ color: rgba(255,255,255,.62); }
+  .muted{ color: rgba(255,255,255,.55); font-size: 12px; }
+  .link{
+    font-size: 12px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.14);
+  }
+  .link:hover{ background: rgba(0,0,0,.22); }
+
+  .rec{
+    @include m.glass;
+    @include m.hover-float;
+    border-radius: var(--r-lg);
+    padding: 14px 14px;
+    display: block;
+  }
+  .rt{ font-weight: 700; margin-bottom: 6px; }
+  .rd{ color: rgba(255,255,255,.65); font-size: 13px; min-height: 34px; }
+  .meta{ display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 8px; }
+  </style>
+</BaseLayout>
+
+<style lang="scss">
+:global(.page){
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+}
+</style>
