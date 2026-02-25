@@ -2,13 +2,36 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import NavBar from "../components/NavBar.astro";
 import Section from "../components/Section.astro";
-import Card from "../components/Card.astro";
 import { getCollection } from "astro:content";
+
+const memberIntroCards = [
+  {
+    id: "fiona",
+    name: "心宜（Fiona）",
+    avatar: "/images/Fiona.jpg",
+    summary: "根据萌娘百科条目：心宜是网络虚拟主播，隶属枝江娱乐，2023年10月15日开始活动。",
+    links: [
+      { label: "成员页", href: "/members/fiona" },
+      { label: "萌娘百科", href: "https://zh.moegirl.org.cn/%E5%BF%83%E5%AE%9C" },
+    ],
+  },
+  {
+    id: "gladys",
+    name: "思诺（Gladys）",
+    avatar: "/images/Gladys.jpg",
+    summary: "根据萌娘百科条目：思诺是网络虚拟主播，隶属枝江娱乐，2023年11月3日开始活动。",
+    links: [
+      { label: "成员页", href: "/members/gladys" },
+      { label: "萌娘百科", href: "https://zh.moegirl.org.cn/%E6%80%9D%E8%AF%BA" },
+    ],
+  },
+];
 
 const mustTag = "入坑必看";
 const kiloTag = "千克必看";
 const allClips = await getCollection("clips");
 const allFanworks = await getCollection("fanworks");
+const adminKeyHash = (import.meta.env.PUBLIC_START_ADMIN_KEY_HASH ?? "").trim().toLowerCase();
 
 const mustClips = allClips.filter((x) => x.data.tags.includes(mustTag)).slice(0, 6);
 const mustFanworks = allFanworks.filter((x) => x.data.tags.includes(mustTag)).slice(0, 6);
@@ -21,20 +44,50 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
   <h1 class="h1">新粉入坑路线 🧭</h1>
 
   <Section title="先认识她们">
-    <div class="grid cols-2">
-      <Card href="/members/fiona" title="心宜（Fiona）" desc="成员页：关键词、风格、推荐观看清单、常用链接。" avatar="/images/Fiona.jpg" />
-      <Card href="/members/gladys" title="思诺（Gladys）" desc="成员页：关键词、风格、推荐观看清单、常用链接。" avatar="/images/Gladys.jpg" />
+    <div class="grid cols-2 intro-grid">
+      {memberIntroCards.map((m) => (
+        <article class="intro-card">
+          <div class="intro-top">
+            <img class="intro-avatar" src={m.avatar} alt="" width="38" height="38" loading="lazy" decoding="async" />
+            <div class="intro-name">{m.name}</div>
+          </div>
+
+          <p class="intro-snippet">{m.summary}</p>
+
+          <div class="intro-links">
+            {m.links.map((link) => (
+              <a
+                class="intro-link"
+                href={link.href}
+                target={link.href.startsWith("http") ? "_blank" : undefined}
+                rel={link.href.startsWith("http") ? "noreferrer" : undefined}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </article>
+      ))}
     </div>
+    <p class="p intro-note">上面简介为对萌娘百科词条的简要整理，完整信息请点“萌娘百科”查看。</p>
   </Section>
 
   <Section title="入坑必看">
     <div class="admin-bar">
-      <button class="admin-btn" id="open-rec-admin" type="button">编辑</button>
+      <button class="admin-btn" id="open-rec-admin" type="button" hidden>编辑</button>
     </div>
 
     <div class="grid cols-3" id="must-rec-grid">
       {[...mustClips, ...mustFanworks].slice(0, 6).map((r) => (
-        <a class="rec rec-static" href={r.data.url} target="_blank" rel="noreferrer">
+        <a
+          class="rec rec-static"
+          data-source="static"
+          data-section="must"
+          data-rec-key={`must:${r.collection}:${r.id}`}
+          href={r.data.url}
+          target="_blank"
+          rel="noreferrer"
+        >
           <div class="t">{r.data.title}</div>
           {r.data.cover && <img class="cover" src={r.data.cover} alt="" loading="lazy" referrerpolicy="no-referrer" />}
           <div class="d">{r.data.reason ?? ""}</div>
@@ -50,7 +103,15 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
   <Section title="千克必看">
     <div class="grid cols-3" id="kilo-rec-grid">
       {[...kiloClips, ...kiloFanworks].slice(0, 6).map((r) => (
-        <a class="rec rec-static" href={r.data.url} target="_blank" rel="noreferrer">
+        <a
+          class="rec rec-static"
+          data-source="static"
+          data-section="kilo"
+          data-rec-key={`kilo:${r.collection}:${r.id}`}
+          href={r.data.url}
+          target="_blank"
+          rel="noreferrer"
+        >
           <div class="t">{r.data.title}</div>
           {r.data.cover && <img class="cover" src={r.data.cover} alt="" loading="lazy" referrerpolicy="no-referrer" />}
           <div class="d">{r.data.reason ?? ""}</div>
@@ -77,8 +138,8 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
         </label>
 
         <label class="field">
-          <span>板块</span>
-          <select id="rec-section-input">
+          <span>板块（由 + 位置决定）</span>
+          <select id="rec-section-input" disabled>
             <option value="must">入坑必看</option>
             <option value="kilo">千克必看</option>
           </select>
@@ -116,18 +177,18 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
         <button class="admin-btn primary" id="save-rec-entry" type="button">保存到页面</button>
         <button class="admin-btn" id="cancel-rec-entry" type="button">取消</button>
       </div>
-
-      <div class="admin-list">
-        <div class="admin-list-title">已保存（本机浏览器）</div>
-        <div id="rec-admin-list"></div>
-      </div>
     </div>
   </div>
 
-  <script>
+  <script define:vars={{ adminKeyHash }}>
     (() => {
       const STORAGE_KEY = "start.custom.recs.v1";
+      const HIDDEN_STATIC_KEY = "start.hidden.static.recs.v1";
+      const ADMIN_AUTH_SESSION_KEY = "start.admin.authed.v1";
       const VIEW_API = "https://api.bilibili.com/x/web-interface/view";
+      const ADMIN_KEY_HASH = String(adminKeyHash || "").trim().toLowerCase();
+      let isAdmin = ADMIN_KEY_HASH.length === 0;
+      let editMode = false;
 
       const mustGrid = document.getElementById("must-rec-grid");
       const kiloGrid = document.getElementById("kilo-rec-grid");
@@ -147,11 +208,10 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
       const coverInput = document.getElementById("rec-cover-input");
       const reasonInput = document.getElementById("rec-reason-input");
       const statusEl = document.getElementById("rec-admin-status");
-      const listEl = document.getElementById("rec-admin-list");
       const coverPreview = document.getElementById("rec-cover-preview");
 
       if (!mustGrid || !kiloGrid || !modal || !openBtn || !closeBtn || !cancelBtn || !fetchBtn || !saveBtn) return;
-      if (!linkInput || !sectionInput || !titleInput || !coverInput || !reasonInput || !statusEl || !listEl || !coverPreview) return;
+      if (!linkInput || !sectionInput || !titleInput || !coverInput || !reasonInput || !statusEl || !coverPreview) return;
 
       const showStatus = (msg, isErr = false) => {
         statusEl.textContent = msg || "";
@@ -172,6 +232,127 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
         if (av) return { aid: av[1] };
 
         return null;
+      };
+
+      const readHiddenStatic = () => {
+        try {
+          const raw = localStorage.getItem(HIDDEN_STATIC_KEY);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+        } catch {
+          return [];
+        }
+      };
+
+      const writeHiddenStatic = (keys) => {
+        localStorage.setItem(HIDDEN_STATIC_KEY, JSON.stringify(keys));
+      };
+
+      const parseAdminKeyCandidates = () => {
+        const url = new URL(window.location.href);
+        const keys = [];
+        const fromQuery = url.searchParams.get("admin");
+        if (fromQuery) keys.push(fromQuery);
+
+        const fromPath = url.pathname.match(/\/start\/([^/?#]+)/i);
+        if (fromPath?.[1]) keys.push(fromPath[1]);
+
+        const hash = url.hash.replace(/^#/, "");
+        const hashKV = hash.match(/^admin=(.+)$/i);
+        if (hashKV?.[1]) keys.push(decodeURIComponent(hashKV[1]));
+        const hashPath = hash.match(/^\/?admin\/(.+)$/i);
+        if (hashPath?.[1]) keys.push(decodeURIComponent(hashPath[1]));
+
+        return keys.filter((x) => x && x.length > 0);
+      };
+
+      const clearAdminKeyFromUrl = () => {
+        const url = new URL(window.location.href);
+        const hadQuery = url.searchParams.has("admin");
+        if (hadQuery) url.searchParams.delete("admin");
+
+        const hash = url.hash.replace(/^#/, "");
+        const hadHash = /^admin=.+$/i.test(hash) || /^\/?admin\/.+$/i.test(hash);
+        if (hadHash) url.hash = "";
+
+        if (hadQuery || hadHash) {
+          history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+        }
+      };
+
+      const sha256Hex = async (text) => {
+        const raw = new TextEncoder().encode(text);
+        const buf = await crypto.subtle.digest("SHA-256", raw);
+        return Array.from(new Uint8Array(buf))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+      };
+
+      const fetchViaJsonp = (url, timeoutMs = 12000) =>
+        new Promise((resolve, reject) => {
+          const callbackName = `__bili_jsonp_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+          const joiner = url.includes("?") ? "&" : "?";
+          const script = document.createElement("script");
+          let timer = null;
+
+          const cleanup = () => {
+            if (timer) clearTimeout(timer);
+            delete window[callbackName];
+            script.remove();
+          };
+
+          window[callbackName] = (payload) => {
+            cleanup();
+            resolve(payload);
+          };
+
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("JSONP network error"));
+          };
+
+          timer = setTimeout(() => {
+            cleanup();
+            reject(new Error("JSONP timeout"));
+          }, timeoutMs);
+
+          script.src = `${url}${joiner}jsonp=jsonp&callback=${callbackName}`;
+          document.head.appendChild(script);
+        });
+
+      const ensureAdminAccess = async () => {
+        if (!ADMIN_KEY_HASH) {
+          isAdmin = true;
+          openBtn.hidden = false;
+          return;
+        }
+
+        if (sessionStorage.getItem(ADMIN_AUTH_SESSION_KEY) === "1") {
+          isAdmin = true;
+          openBtn.hidden = false;
+          return;
+        }
+
+        const candidates = parseAdminKeyCandidates();
+        for (const key of candidates) {
+          try {
+            const hash = await sha256Hex(key);
+            if (hash === ADMIN_KEY_HASH) {
+              sessionStorage.setItem(ADMIN_AUTH_SESSION_KEY, "1");
+              clearAdminKeyFromUrl();
+              isAdmin = true;
+              openBtn.hidden = false;
+              return;
+            }
+          } catch {
+            // ignore hash errors
+          }
+        }
+
+        isAdmin = false;
+        openBtn.hidden = true;
+        modal.hidden = true;
       };
 
       const readCustom = () => {
@@ -198,6 +379,9 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
       const createCard = (item) => {
         const a = document.createElement("a");
         a.className = "rec rec-custom";
+        a.dataset.source = "custom";
+        a.dataset.section = item.section;
+        a.dataset.recKey = item.id;
         a.href = item.url;
         a.target = "_blank";
         a.rel = "noreferrer";
@@ -225,56 +409,42 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
         return a;
       };
 
-      const updateEmptyState = () => {
-        const custom = readCustom();
-        const mustHasCustom = custom.some((x) => x.section === "must");
-        const kiloHasCustom = custom.some((x) => x.section === "kilo");
-        const mustHasStatic = !!mustGrid.querySelector(".rec-static");
-        const kiloHasStatic = !!kiloGrid.querySelector(".rec-static");
+      const setCardLinksEnabled = (enabled) => {
+        document.querySelectorAll("a.rec-static, a.rec-custom").forEach((card) => {
+          const anchor = card;
+          if (!(anchor instanceof HTMLAnchorElement)) return;
 
-        if (mustEmpty) mustEmpty.hidden = mustHasStatic || mustHasCustom;
-        if (kiloEmpty) kiloEmpty.hidden = kiloHasStatic || kiloHasCustom;
+          if (enabled) {
+            const saved = anchor.dataset.hrefSaved;
+            if (saved && !anchor.hasAttribute("href")) {
+              anchor.setAttribute("href", saved);
+            }
+            anchor.removeAttribute("aria-disabled");
+            return;
+          }
+
+          if (anchor.hasAttribute("href")) {
+            anchor.dataset.hrefSaved = anchor.getAttribute("href") || "";
+          }
+          anchor.removeAttribute("href");
+          anchor.setAttribute("aria-disabled", "true");
+        });
       };
 
-      const renderAdminList = () => {
-        const items = readCustom();
-        listEl.innerHTML = "";
-
-        if (!items.length) {
-          const p = document.createElement("p");
-          p.className = "p";
-          p.textContent = "暂无本地保存条目。";
-          listEl.appendChild(p);
-          return;
-        }
-
-        items.forEach((item) => {
-          const row = document.createElement("div");
-          row.className = "admin-item";
-
-          const left = document.createElement("div");
-          const name = document.createElement("div");
-          name.textContent = item.title;
-          const meta = document.createElement("div");
-          meta.className = "meta";
-          meta.textContent = `${item.section === "must" ? "入坑必看" : "千克必看"} · ${item.url}`;
-          left.append(name, meta);
-
-          const del = document.createElement("button");
-          del.className = "admin-delete";
-          del.type = "button";
-          del.textContent = "删除";
-          del.addEventListener("click", () => {
-            const next = readCustom().filter((x) => x.id !== item.id);
-            writeCustom(next);
-            renderCustomCards();
-            renderAdminList();
-            showStatus("已删除。");
-          });
-
-          row.append(left, del);
-          listEl.appendChild(row);
+      const applyHiddenStatic = () => {
+        const hidden = new Set(readHiddenStatic());
+        document.querySelectorAll(".rec-static").forEach((card) => {
+          const key = card.getAttribute("data-rec-key") || "";
+          card.hidden = hidden.has(key);
         });
+      };
+
+      const updateEmptyState = () => {
+        const mustVisible = mustGrid.querySelectorAll(".rec:not(.rec-add-slot):not([hidden])").length > 0;
+        const kiloVisible = kiloGrid.querySelectorAll(".rec:not(.rec-add-slot):not([hidden])").length > 0;
+
+        if (mustEmpty) mustEmpty.hidden = mustVisible;
+        if (kiloEmpty) kiloEmpty.hidden = kiloVisible;
       };
 
       const renderCustomCards = () => {
@@ -286,12 +456,91 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
 
         mustItems.forEach((item) => mustGrid.prepend(createCard(item)));
         kiloItems.forEach((item) => kiloGrid.prepend(createCard(item)));
+        if (editMode) setCardLinksEnabled(false);
         updateEmptyState();
       };
 
-      const resetForm = () => {
+      const removeDeleteButtons = () => {
+        document.querySelectorAll(".rec-delete").forEach((x) => x.remove());
+      };
+
+      const deleteCard = (card) => {
+        const title = card.querySelector(".t")?.textContent?.trim() || "该条目";
+        if (!confirm(`确定删除「${title}」吗？`)) return;
+
+        const source = card.getAttribute("data-source");
+        const recKey = card.getAttribute("data-rec-key") || "";
+        if (source === "custom") {
+          const next = readCustom().filter((x) => x.id !== recKey);
+          writeCustom(next);
+        } else if (source === "static" && recKey) {
+          const hidden = readHiddenStatic();
+          if (!hidden.includes(recKey)) {
+            hidden.push(recKey);
+            writeHiddenStatic(hidden);
+          }
+        }
+
+        applyHiddenStatic();
+        renderCustomCards();
+        renderEditOverlays();
+      };
+
+      const renderDeleteButtons = () => {
+        removeDeleteButtons();
+        if (!isAdmin || !editMode) return;
+
+        document.querySelectorAll(".rec-static, .rec-custom").forEach((card) => {
+          if (card.hidden) return;
+
+          const del = document.createElement("button");
+          del.type = "button";
+          del.className = "rec-delete";
+          del.textContent = "×";
+          del.setAttribute("aria-label", "删除条目");
+          del.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            deleteCard(card);
+          });
+          card.appendChild(del);
+        });
+      };
+
+      const renderAddSlots = () => {
+        document.querySelectorAll(".rec-add-slot").forEach((x) => x.remove());
+        if (!isAdmin || !editMode) return;
+
+        const sections = [
+          { key: "must", grid: mustGrid },
+          { key: "kilo", grid: kiloGrid },
+        ];
+
+        for (const section of sections) {
+          const visibleCount = section.grid.querySelectorAll(".rec:not(.rec-add-slot):not([hidden])").length;
+          const slots = Math.max(0, 6 - visibleCount);
+
+          for (let i = 0; i < slots; i += 1) {
+            const add = document.createElement("button");
+            add.type = "button";
+            add.className = "rec rec-add-slot";
+            add.setAttribute("data-section", section.key);
+            add.innerHTML = '<span class="plus">+</span>';
+            add.addEventListener("click", () => openCreateModal(section.key));
+            section.grid.appendChild(add);
+          }
+        }
+      };
+
+      const renderEditOverlays = () => {
+        renderDeleteButtons();
+        renderAddSlots();
+        updateEmptyState();
+      };
+
+      const resetForm = (section = "must") => {
         linkInput.value = "";
-        sectionInput.value = "must";
+        sectionInput.value = section;
         titleInput.value = "";
         coverInput.value = "";
         reasonInput.value = "";
@@ -301,13 +550,18 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
       };
 
       const openModal = () => {
+        if (!isAdmin || !editMode) return;
         modal.hidden = false;
-        renderAdminList();
       };
 
       const closeModal = () => {
         modal.hidden = true;
-        resetForm();
+        resetForm(sectionInput.value === "kilo" ? "kilo" : "must");
+      };
+
+      const openCreateModal = (section) => {
+        resetForm(section);
+        openModal();
       };
 
       const syncCoverPreview = () => {
@@ -322,6 +576,7 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
       };
 
       const fetchMeta = async () => {
+        if (!isAdmin) return;
         const link = normalizeUrl(linkInput.value);
         const id = parseVideoId(link);
 
@@ -331,27 +586,39 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
         }
 
         showStatus("正在抓取标题和封面...");
-        try {
-          const qs = new URLSearchParams(id).toString();
-          const resp = await fetch(`${VIEW_API}?${qs}`);
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-
-          const json = await resp.json();
+        const applyMetaFromPayload = (json) => {
           if (!json || json.code !== 0 || !json.data) {
             throw new Error(json?.message || "B站接口返回异常");
           }
-
           titleInput.value = json.data.title || "";
           coverInput.value = normalizeCover(json.data.pic || "");
           syncCoverPreview();
-          showStatus("已自动填好标题和封面。");
+        };
+
+        try {
+          const qs = new URLSearchParams(id).toString();
+          const apiUrl = `${VIEW_API}?${qs}`;
+
+          try {
+            const resp = await fetch(apiUrl);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const json = await resp.json();
+            applyMetaFromPayload(json);
+            showStatus("已自动填好标题和封面。");
+            return;
+          } catch {
+            const jsonpPayload = await fetchViaJsonp(apiUrl);
+            applyMetaFromPayload(jsonpPayload);
+            showStatus("已通过兼容模式抓取标题和封面。");
+          }
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          showStatus(`抓取失败：${msg}。你也可以手动填写标题和封面。`, true);
+          showStatus(`抓取失败：${msg}。这是跨域/风控常见问题，可手动填标题和封面。`, true);
         }
       };
 
       const saveEntry = () => {
+        if (!isAdmin) return;
         const item = {
           id: (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`).toString(),
           section: sectionInput.value === "kilo" ? "kilo" : "must",
@@ -373,23 +640,52 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
 
         const next = [item, ...readCustom()].slice(0, 60);
         writeCustom(next);
+        applyHiddenStatic();
         renderCustomCards();
-        renderAdminList();
-        showStatus("保存成功，页面已更新。");
+        closeModal();
+        renderEditOverlays();
       };
 
-      openBtn.addEventListener("click", openModal);
+      const setEditMode = (next) => {
+        if (!isAdmin) return;
+        editMode = next;
+        openBtn.textContent = editMode ? "完成" : "编辑";
+        if (editMode) {
+          setCardLinksEnabled(false);
+          renderEditOverlays();
+          return;
+        }
+        closeModal();
+        removeDeleteButtons();
+        document.querySelectorAll(".rec-add-slot").forEach((x) => x.remove());
+        setCardLinksEnabled(true);
+        updateEmptyState();
+      };
+
+      openBtn.addEventListener("click", () => setEditMode(!editMode));
       closeBtn.addEventListener("click", closeModal);
       cancelBtn.addEventListener("click", closeModal);
       fetchBtn.addEventListener("click", fetchMeta);
       saveBtn.addEventListener("click", saveEntry);
       coverInput.addEventListener("input", syncCoverPreview);
+      linkInput.addEventListener("change", () => {
+        if (normalizeUrl(linkInput.value)) fetchMeta();
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !modal.hidden) closeModal();
+      });
 
       modal.addEventListener("click", (event) => {
         if (event.target === modal) closeModal();
       });
 
-      renderCustomCards();
+      (async () => {
+        await ensureAdminAccess();
+        applyHiddenStatic();
+        renderCustomCards();
+        renderEditOverlays();
+      })();
     })();
   </script>
 
@@ -402,6 +698,7 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
     border-radius: var(--r-lg);
     padding: 14px 14px;
     display: block;
+    position: relative;
   }
   .cover{
     width: 100%;
@@ -414,6 +711,164 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
   }
   .t{ font-weight: 700; margin-bottom: 6px; }
   .d{ color: rgba(255,255,255,.65); font-size: 13px; min-height: 34px; }
+
+  .intro-grid{
+    align-items: stretch;
+  }
+  .intro-card{
+    @include m.glass;
+    border-radius: var(--r-lg);
+    padding: 14px 14px;
+  }
+  .intro-top{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .intro-avatar{
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,.18);
+    display: block;
+  }
+  .intro-name{
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: .2px;
+  }
+  .intro-snippet{
+    margin: 0;
+    color: rgba(255,255,255,.78);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .intro-links{
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .intro-link{
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.15);
+    background: rgba(0,0,0,.24);
+    color: rgba(230,255,244,.95);
+    font-size: 12px;
+    text-decoration: none;
+    transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease), transform var(--dur) var(--ease);
+  }
+  .intro-link:hover{
+    border-color: rgba(160, 225, 196, .6);
+    background: rgba(30, 60, 52, .42);
+    transform: translateY(-1px);
+  }
+  .intro-note{
+    margin-top: 10px;
+  }
+
+  :global(a.rec-custom){
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: var(--r-lg);
+    padding: 14px;
+    display: block;
+    position: relative;
+    transition:
+      transform var(--dur) var(--ease),
+      box-shadow var(--dur) var(--ease),
+      border-color var(--dur) var(--ease),
+      background var(--dur) var(--ease);
+  }
+  :global(a.rec-custom:hover){
+    transform: translateY(-4px);
+    border-color: rgba(255,255,255,.16);
+    box-shadow: 0 24px 70px rgba(0,0,0,.46);
+  }
+  :global(.rec-custom .cover){
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.14);
+    margin: 8px 0 10px;
+    display: block;
+  }
+  :global(.rec-custom .t){
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  :global(.rec-custom .d){
+    color: rgba(255,255,255,.65);
+    font-size: 13px;
+    min-height: 34px;
+  }
+
+  :global(.rec-delete){
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 120, 120, .45);
+    background: rgba(28, 10, 14, .72);
+    color: rgba(255, 214, 214, .95);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    transition: transform var(--dur) var(--ease), border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  }
+  :global(.rec-delete:hover){
+    transform: scale(1.04);
+    border-color: rgba(255, 142, 142, .75);
+    background: rgba(60, 14, 22, .86);
+  }
+
+  :global(button.rec-add-slot){
+    appearance: none;
+    border-radius: var(--r-lg);
+    border: 1px dashed rgba(255,255,255,.28);
+    background:
+      linear-gradient(160deg, rgba(18, 22, 38, .62), rgba(12, 15, 26, .48));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+    min-height: 250px;
+    width: 100%;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition:
+      transform var(--dur) var(--ease),
+      border-color var(--dur) var(--ease),
+      background var(--dur) var(--ease);
+  }
+  :global(button.rec-add-slot:hover){
+    transform: translateY(-3px);
+    border-color: rgba(160, 225, 196, .55);
+    background:
+      linear-gradient(160deg, rgba(28, 40, 55, .7), rgba(18, 26, 38, .6));
+  }
+  :global(button.rec-add-slot .plus){
+    width: 54px;
+    height: 54px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.24);
+    background: rgba(255,255,255,.07);
+    color: rgba(230,255,244,.96);
+    font-size: 30px;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+  }
 
   .admin-bar{
     display: flex;
@@ -429,6 +884,9 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
     font-size: 13px;
     cursor: pointer;
     transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  }
+  .admin-btn[hidden]{
+    display: none !important;
   }
   .admin-btn:hover{
     border-color: rgba(255,255,255,.32);
@@ -448,6 +906,9 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
     place-items: center;
     background: rgba(0,0,0,.56);
     padding: 16px;
+  }
+  .admin-modal[hidden]{
+    display: none !important;
   }
   .admin-panel{
     width: min(760px, 100%);
@@ -502,6 +963,10 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
     font-size: 14px;
     font-family: inherit;
   }
+  .field select:disabled{
+    opacity: .8;
+    cursor: not-allowed;
+  }
   .field textarea{
     resize: vertical;
     min-height: 76px;
@@ -530,37 +995,6 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
     display: flex;
     gap: 8px;
     margin-top: 8px;
-  }
-  .admin-list{
-    margin-top: 12px;
-    border-top: 1px solid rgba(255,255,255,.14);
-    padding-top: 12px;
-  }
-  .admin-list-title{
-    font-size: 13px;
-    color: rgba(255,255,255,.72);
-    margin-bottom: 6px;
-  }
-  .admin-item{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 8px 0;
-    border-bottom: 1px dashed rgba(255,255,255,.12);
-  }
-  .admin-item .meta{
-    color: rgba(255,255,255,.72);
-    font-size: 12px;
-  }
-  .admin-delete{
-    border: 1px solid rgba(255, 163, 163, .45);
-    background: rgba(120, 20, 20, .22);
-    color: rgba(255,220,220,.96);
-    border-radius: 999px;
-    padding: 4px 10px;
-    font-size: 12px;
-    cursor: pointer;
   }
 
   @media (max-width: 720px){
