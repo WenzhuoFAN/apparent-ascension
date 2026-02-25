@@ -1,8 +1,8 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import NavBar from "../components/NavBar.astro";
-import Section from "../components/Section.astro";
-const defaultPosterTitle = "本周日程表";
+
+const defaultTitle = "本月直播日程";
 const roomCoverMap = {
   fiona: "/images/FionaLive.jpg",
   gladys: "/images/GladysLive.jpg",
@@ -11,222 +11,348 @@ const roomCoverMap = {
 <BaseLayout title="日程表｜闪耀舞台" description="每周直播日程表（手动维护）">
   <NavBar slot="nav" active="schedule" />
 
-  <h1 class="h1">每周直播日程表 🗓️</h1>
-  <p class="p">你每周手动更新即可：改标题、日期、时间、直播间，封面会按直播间自动切换。</p>
+  <h1 class="h1">直播日程表 🗓️</h1>
+  <p class="p">你每周手动更新即可：改标题、日期、时间、直播间。保存后会显示到下方“已保存日程”。</p>
 
-  <section class="poster-wrap">
-    <div class="poster-head">
-      <h2 class="h2">本周封面</h2>
-      <button class="edit-btn" id="open-poster-editor" type="button">编辑</button>
+  <section class="calendar-wrap">
+    <div class="calendar-head">
+      <h2 class="h2">本月日历</h2>
+      <button class="edit-btn" id="open-editor" type="button" hidden>编辑</button>
     </div>
-
-    <article class="poster-card">
-      <div class="poster-title" id="poster-title">{defaultPosterTitle}</div>
-      <div class="poster-sub" id="poster-sub">日期：-- ｜ 时间：-- ｜ 直播间：--</div>
-      <img id="poster-image" class="poster-image" alt="" hidden />
-      <div id="poster-empty" class="poster-empty">未找到封面图片，请检查 `public/images/FionaLive.jpg` 与 `public/images/GladysLive.jpg`。</div>
-    </article>
+    <div class="calendar-month" id="calendar-month-label">--</div>
+    <div class="calendar-weekdays">
+      <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+    </div>
+    <div class="calendar-grid" id="calendar-grid"></div>
   </section>
 
-  <Section title="本周日程">
-    <div class="list">
-      <div class="row" id="manual-row" hidden>
-        <div class="when" id="manual-when">--</div>
-        <div class="what">
-          <div class="t" id="manual-title">--</div>
-          <div class="meta" id="manual-meta">直播间：--</div>
-        </div>
-        <div class="go">
-          <span class="muted" id="manual-status">已保存</span>
-        </div>
-      </div>
-    </div>
-    <p class="p" id="manual-empty">暂无已保存日程，点击上方“编辑”添加。</p>
-  </Section>
+  <section class="saved-sec">
+    <div id="saved-list"></div>
+    <p class="p" id="saved-empty">暂无已保存日程。</p>
+  </section>
 
-  <div class="editor-modal" id="poster-editor-modal" hidden>
+  <div class="editor-modal" id="editor-modal" hidden>
     <div class="editor-panel">
       <div class="editor-head">
-        <h3>封面编辑</h3>
-        <button class="close-btn" id="close-poster-editor" type="button" aria-label="关闭">×</button>
+        <h3>日程编辑</h3>
+        <button class="close-btn" id="close-editor" type="button" aria-label="关闭">×</button>
       </div>
 
       <label class="field">
         <span>标题</span>
-        <input id="poster-title-input" type="text" placeholder="例如：Week of 2026-03-02" />
+        <input id="title-input" type="text" placeholder="例如：【心宜思诺的聊天室】马年大吉！" />
       </label>
 
       <label class="field">
         <span>日期</span>
-        <input id="poster-date-input" type="date" />
+        <input id="date-input" type="date" />
       </label>
 
       <label class="field">
         <span>时间</span>
-        <input id="poster-time-input" type="time" />
+        <input id="time-input" type="time" step="600" />
       </label>
 
       <label class="field">
         <span>直播间</span>
-        <select id="poster-room-input">
+        <select id="room-input">
           <option value="fiona">心宜</option>
           <option value="gladys">思诺</option>
         </select>
       </label>
 
       <div class="field">
-        <span>封面预览（自动）</span>
-        <img id="poster-cover-preview" class="cover-preview" alt="" hidden />
-        <div id="poster-cover-empty" class="muted">当前直播间对应封面未找到，请检查图片路径。</div>
+        <span>直播封面预览（自动）</span>
+        <img id="cover-preview" class="cover-preview" alt="" hidden />
+        <div id="cover-preview-empty" class="muted">未找到封面，请检查 `public/images/FionaLive.jpg` 与 `public/images/GladysLive.jpg`。</div>
       </div>
 
-      <p class="p path-note">封面路径可在本文件顶部 `roomCoverMap` 修改。</p>
-
       <div class="editor-actions">
-        <button class="edit-btn primary" id="save-poster" type="button">保存</button>
-        <button class="edit-btn" id="clear-poster" type="button">清空</button>
-        <button class="edit-btn" id="cancel-poster" type="button">取消</button>
+        <button class="edit-btn primary" id="save-entry" type="button">保存</button>
+        <button class="edit-btn" id="clear-all" type="button">清空全部</button>
+        <button class="edit-btn" id="cancel-editor" type="button">取消</button>
       </div>
     </div>
   </div>
 
-  <script define:vars={{ defaultPosterTitle, roomCoverMap }}>
+  <script define:vars={{ defaultTitle, roomCoverMap }}>
     (() => {
-      const STORAGE_KEY = "schedule.poster.v1";
-      const fallbackTitle = String(defaultPosterTitle || "本周日程表");
+      const CONTENT_KEY = "schedule.manual.entries.v3";
+      const fallbackTitle = String(defaultTitle || "本月直播日程");
       const coverMap = roomCoverMap || { fiona: "", gladys: "" };
       const roomLabelMap = { fiona: "心宜", gladys: "思诺" };
+      const roomMarkMap = { fiona: "🦭", gladys: "🐚" };
 
-      const openBtn = document.getElementById("open-poster-editor");
-      const modal = document.getElementById("poster-editor-modal");
-      const closeBtn = document.getElementById("close-poster-editor");
-      const cancelBtn = document.getElementById("cancel-poster");
-      const saveBtn = document.getElementById("save-poster");
-      const clearBtn = document.getElementById("clear-poster");
+      const openBtn = document.getElementById("open-editor");
+      const modal = document.getElementById("editor-modal");
+      const closeBtn = document.getElementById("close-editor");
+      const cancelBtn = document.getElementById("cancel-editor");
+      const saveBtn = document.getElementById("save-entry");
+      const clearBtn = document.getElementById("clear-all");
 
-      const titleInput = document.getElementById("poster-title-input");
-      const dateInput = document.getElementById("poster-date-input");
-      const timeInput = document.getElementById("poster-time-input");
-      const roomInput = document.getElementById("poster-room-input");
-      const preview = document.getElementById("poster-cover-preview");
-      const previewEmpty = document.getElementById("poster-cover-empty");
+      const titleInput = document.getElementById("title-input");
+      const dateInput = document.getElementById("date-input");
+      const timeInput = document.getElementById("time-input");
+      const roomInput = document.getElementById("room-input");
+      const previewImg = document.getElementById("cover-preview");
+      const previewEmpty = document.getElementById("cover-preview-empty");
 
-      const titleEl = document.getElementById("poster-title");
-      const subEl = document.getElementById("poster-sub");
-      const imageEl = document.getElementById("poster-image");
-      const emptyEl = document.getElementById("poster-empty");
-      const manualRow = document.getElementById("manual-row");
-      const manualWhenEl = document.getElementById("manual-when");
-      const manualTitleEl = document.getElementById("manual-title");
-      const manualMetaEl = document.getElementById("manual-meta");
-      const manualStatusEl = document.getElementById("manual-status");
-      const manualEmptyEl = document.getElementById("manual-empty");
+      const savedList = document.getElementById("saved-list");
+      const savedEmpty = document.getElementById("saved-empty");
+      const monthLabel = document.getElementById("calendar-month-label");
+      const calendarGrid = document.getElementById("calendar-grid");
 
       if (!openBtn || !modal || !closeBtn || !cancelBtn || !saveBtn || !clearBtn) return;
-      if (!titleInput || !dateInput || !timeInput || !roomInput || !preview || !previewEmpty || !titleEl || !subEl || !imageEl || !emptyEl) return;
-      if (!manualRow || !manualWhenEl || !manualTitleEl || !manualMetaEl || !manualStatusEl || !manualEmptyEl) return;
+      if (!titleInput || !dateInput || !timeInput || !roomInput || !previewImg || !previewEmpty) return;
+      if (!savedList || !savedEmpty || !monthLabel || !calendarGrid) return;
 
-      const readPoster = () => {
+      let entriesState = [];
+      let isAdmin = false;
+      openBtn.hidden = true;
+
+      const now = new Date();
+      const nowDateISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const pad2 = (n) => String(n).padStart(2, "0");
+      const normalizeTimeTo10Min = (time) => {
+        const match = String(time || "").match(/^(\d{2}):(\d{2})$/);
+        if (!match) return "";
+        let hh = Number(match[1]);
+        let mm = Number(match[2]);
+        if (Number.isNaN(hh) || Number.isNaN(mm)) return "";
+
+        mm = Math.round(mm / 10) * 10;
+        if (mm >= 60) {
+          mm = 0;
+          hh = (hh + 1) % 24;
+        }
+        return `${pad2(hh)}:${pad2(mm)}`;
+      };
+      const nowTimeISO = normalizeTimeTo10Min(`${pad2(now.getHours())}:${pad2(now.getMinutes())}`) || "20:00";
+
+      const sortEntries = (entries) =>
+        [...entries].sort((a, b) => {
+          const ka = `${a.date}T${a.time}`;
+          const kb = `${b.date}T${b.time}`;
+          return ka.localeCompare(kb);
+        });
+
+      const contentUrl = (admin = false) =>
+        `${admin ? "/api/admin/content/" : "/api/content/"}${encodeURIComponent(CONTENT_KEY)}`;
+
+      const fetchJson = async (url, init = {}) => {
+        const response = await fetch(url, { cache: "no-store", ...init });
+        let payload = null;
         try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return null;
-          const parsed = JSON.parse(raw);
-          if (!parsed || typeof parsed !== "object") return null;
-          return {
-            title: typeof parsed.title === "string" ? parsed.title : "",
-            date: typeof parsed.date === "string" ? parsed.date : "",
-            time: typeof parsed.time === "string" ? parsed.time : "",
-            room: parsed.room === "gladys" ? "gladys" : "fiona",
-          };
+          payload = await response.json();
         } catch {
-          return null;
+          payload = null;
+        }
+        return { response, payload };
+      };
+
+      const loadAdminState = async () => {
+        try {
+          const { response, payload } = await fetchJson("/api/admin/session");
+          if (!response.ok) {
+            isAdmin = false;
+            openBtn.hidden = true;
+            return;
+          }
+          isAdmin = !!payload?.authenticated;
+          openBtn.hidden = !isAdmin;
+        } catch {
+          isAdmin = false;
+          openBtn.hidden = true;
         }
       };
 
-      const writePoster = (payload) => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      const loadEntries = async () => {
+        try {
+          const { response, payload } = await fetchJson(contentUrl(false));
+          if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+            entriesState = [];
+            return;
+          }
+          entriesState = sortEntries(payload.data);
+        } catch {
+          entriesState = [];
+        }
+      };
+
+      const persistEntries = async (nextEntries) => {
+        if (!isAdmin) {
+          alert("请先登录管理员账号：/admin");
+          return false;
+        }
+
+        const normalized = sortEntries(nextEntries);
+        const { response, payload } = await fetchJson(contentUrl(true), {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ data: normalized }),
+        });
+
+        if (response.status === 401) {
+          isAdmin = false;
+          openBtn.hidden = true;
+          alert("管理员会话已失效，请重新登录 /admin。");
+          return false;
+        }
+        if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+          alert(`保存失败：${payload?.message || response.statusText}`);
+          return false;
+        }
+
+        entriesState = sortEntries(payload.data);
+        return true;
       };
 
       const getCoverByRoom = (room) => (room === "gladys" ? String(coverMap.gladys || "") : String(coverMap.fiona || ""));
+
       const formatDateCN = (date) => {
-        const text = String(date || "").trim();
-        const m = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (!m) return text || "--";
+        const m = String(date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return date || "--";
         return `${Number(m[1])}年${Number(m[2])}月${Number(m[3])}日`;
       };
 
-      const applyImage = (imgEl, emptyStateEl, src, emptyText) => {
+      const renderPreviewByRoom = (room) => {
+        const src = getCoverByRoom(room);
         if (!src) {
-          imgEl.hidden = true;
-          imgEl.removeAttribute("src");
-          if (emptyStateEl) {
-            emptyStateEl.textContent = emptyText;
-            emptyStateEl.hidden = false;
-          }
+          previewImg.hidden = true;
+          previewImg.removeAttribute("src");
+          previewEmpty.hidden = false;
           return;
         }
 
-        imgEl.onerror = () => {
-          imgEl.hidden = true;
-          if (emptyStateEl) {
-            emptyStateEl.textContent = `找不到封面：${src}`;
-            emptyStateEl.hidden = false;
-          }
+        previewImg.onerror = () => {
+          previewImg.hidden = true;
+          previewEmpty.hidden = false;
         };
-        imgEl.onload = () => {
-          imgEl.hidden = false;
-          if (emptyStateEl) emptyStateEl.hidden = true;
+        previewImg.onload = () => {
+          previewImg.hidden = false;
+          previewEmpty.hidden = true;
         };
-        imgEl.src = src;
+        previewImg.src = src;
       };
 
-      const renderManualRow = (payload) => {
-        if (!payload) {
-          manualRow.hidden = true;
-          manualEmptyEl.hidden = false;
+      const renderSavedList = (entries) => {
+        savedList.innerHTML = "";
+        if (!entries.length) {
+          savedEmpty.hidden = false;
           return;
         }
 
-        const room = payload.room === "gladys" ? "gladys" : "fiona";
-        const title = payload.title?.trim() || fallbackTitle;
-        const date = formatDateCN(payload.date);
-        const time = payload.time?.trim() || "--";
+        savedEmpty.hidden = true;
+        entries.forEach((entry) => {
+          const card = document.createElement("article");
+          card.className = "saved-card";
 
-        manualWhenEl.textContent = `${date} ${time}`;
-        manualTitleEl.textContent = title;
-        manualMetaEl.textContent = `直播间：${roomLabelMap[room]}`;
-        manualStatusEl.textContent = "已保存";
-        manualRow.hidden = false;
-        manualEmptyEl.hidden = true;
+          const main = document.createElement("div");
+          main.className = "saved-main";
+
+          const when = document.createElement("div");
+          when.className = "saved-when";
+          when.textContent = `${formatDateCN(entry.date)} ${entry.time}`;
+
+          const title = document.createElement("div");
+          title.className = "saved-title";
+          title.textContent = entry.title || fallbackTitle;
+
+          const meta = document.createElement("div");
+          meta.className = "saved-meta";
+          meta.textContent = `直播间：${roomLabelMap[entry.room]}`;
+
+          main.append(when, title, meta);
+
+          const coverWrap = document.createElement("div");
+          coverWrap.className = "saved-cover-wrap";
+          const cover = document.createElement("img");
+          cover.className = "saved-cover";
+          cover.alt = "";
+          cover.loading = "lazy";
+          cover.src = getCoverByRoom(entry.room);
+          cover.onerror = () => {
+            coverWrap.innerHTML = '<div class="saved-cover-miss">封面缺失</div>';
+          };
+          coverWrap.appendChild(cover);
+
+          card.append(main, coverWrap);
+          savedList.appendChild(card);
+        });
       };
 
-      const renderPoster = (payload) => {
-        const hasPayload = !!payload;
-        const title = payload?.title?.trim() || fallbackTitle;
-        const room = payload?.room === "gladys" ? "gladys" : "fiona";
-        const date = payload?.date?.trim() || "--";
-        const time = payload?.time?.trim() || "--";
-        const roomLabel = hasPayload ? roomLabelMap[room] : "--";
-        const cover = hasPayload ? getCoverByRoom(room) : "";
+      const renderCalendar = (entries) => {
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
 
-        titleEl.textContent = title;
-        subEl.textContent = `日期：${date} ｜ 时间：${time} ｜ 直播间：${roomLabel}`;
-        applyImage(imageEl, emptyEl, cover, "未找到封面图片，请检查 `public/images/FionaLive.jpg` 与 `public/images/GladysLive.jpg`。");
-        renderManualRow(payload);
+        monthLabel.textContent = `${year}年${month}月`;
+        calendarGrid.innerHTML = "";
+
+        const firstDay = new Date(year, month - 1, 1);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const start = (firstDay.getDay() + 6) % 7; // Monday=0
+
+        const marksByDate = new Map();
+        entries.forEach((entry) => {
+          if (!entry.date?.startsWith(`${year}-${String(month).padStart(2, "0")}-`)) return;
+          const set = marksByDate.get(entry.date) || new Set();
+          set.add(entry.room);
+          marksByDate.set(entry.date, set);
+        });
+
+        for (let i = 0; i < start; i += 1) {
+          const blank = document.createElement("div");
+          blank.className = "cal-cell is-empty";
+          calendarGrid.appendChild(blank);
+        }
+
+        for (let day = 1; day <= daysInMonth; day += 1) {
+          const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const cell = document.createElement("div");
+          cell.className = "cal-cell";
+
+          const dayEl = document.createElement("div");
+          dayEl.className = "cal-day";
+          dayEl.textContent = String(day);
+
+          const marks = document.createElement("div");
+          marks.className = "cal-marks";
+          const roomSet = marksByDate.get(dateKey);
+          if (roomSet?.has("fiona")) {
+            const f = document.createElement("span");
+            f.className = "cal-mark fiona";
+            f.textContent = roomMarkMap.fiona;
+            marks.appendChild(f);
+          }
+          if (roomSet?.has("gladys")) {
+            const g = document.createElement("span");
+            g.className = "cal-mark gladys";
+            g.textContent = roomMarkMap.gladys;
+            marks.appendChild(g);
+          }
+
+          if (dateKey === nowDateISO) {
+            cell.classList.add("is-today");
+          }
+
+          cell.append(dayEl, marks);
+          calendarGrid.appendChild(cell);
+        }
       };
 
-      const setPreviewByRoom = (room) => {
-        const cover = getCoverByRoom(room);
-        applyImage(preview, previewEmpty, cover, "当前直播间对应封面未找到，请检查图片路径。");
+      const renderAll = () => {
+        const entries = sortEntries(entriesState);
+        renderSavedList(entries);
+        renderCalendar(entries);
       };
 
       const openModal = () => {
-        const current = readPoster();
-        titleInput.value = current?.title || fallbackTitle;
-        dateInput.value = current?.date || "";
-        timeInput.value = current?.time || "";
-        roomInput.value = current?.room || "fiona";
-        setPreviewByRoom(roomInput.value);
+        if (!isAdmin) return;
+        titleInput.value = fallbackTitle;
+        dateInput.value = nowDateISO;
+        timeInput.value = nowTimeISO;
+        roomInput.value = "fiona";
+        renderPreviewByRoom("fiona");
         modal.hidden = false;
       };
 
@@ -235,29 +361,46 @@ const roomCoverMap = {
       };
 
       roomInput.addEventListener("change", () => {
-        setPreviewByRoom(roomInput.value);
+        renderPreviewByRoom(roomInput.value);
+      });
+      timeInput.addEventListener("change", () => {
+        const fixed = normalizeTimeTo10Min(timeInput.value);
+        if (fixed) timeInput.value = fixed;
       });
 
       openBtn.addEventListener("click", openModal);
       closeBtn.addEventListener("click", closeModal);
       cancelBtn.addEventListener("click", closeModal);
 
-      saveBtn.addEventListener("click", () => {
-        const payload = {
+      saveBtn.addEventListener("click", async () => {
+        if (!dateInput.value || !timeInput.value) {
+          alert("请先填写日期和时间。");
+          return;
+        }
+
+        const room = roomInput.value === "gladys" ? "gladys" : "fiona";
+        const entry = {
           title: titleInput.value.trim() || fallbackTitle,
-          date: dateInput.value || "",
-          time: timeInput.value || "",
-          room: roomInput.value === "gladys" ? "gladys" : "fiona",
+          date: dateInput.value,
+          time: normalizeTimeTo10Min(timeInput.value) || timeInput.value,
+          room,
+          updatedAt: new Date().toISOString(),
         };
-        writePoster(payload);
-        renderPoster(payload);
+
+        const key = `${entry.date}|${entry.time}|${entry.room}`;
+        const next = entriesState.filter((x) => `${x.date}|${x.time}|${x.room}` !== key);
+        next.push(entry);
+        const ok = await persistEntries(next);
+        if (!ok) return;
+        renderAll();
         closeModal();
       });
 
-      clearBtn.addEventListener("click", () => {
-        if (!confirm("确定清空当前配置吗？")) return;
-        localStorage.removeItem(STORAGE_KEY);
-        renderPoster(null);
+      clearBtn.addEventListener("click", async () => {
+        if (!confirm("确定清空全部已保存日程吗？")) return;
+        const ok = await persistEntries([]);
+        if (!ok) return;
+        renderAll();
         closeModal();
       });
 
@@ -269,83 +412,135 @@ const roomCoverMap = {
         if (event.key === "Escape" && !modal.hidden) closeModal();
       });
 
-      renderPoster(readPoster());
+      (async () => {
+        await Promise.all([loadEntries(), loadAdminState()]);
+        renderAll();
+      })();
     })();
   </script>
 
   <style lang="scss">
   @use "../styles/mixins" as m;
 
-  .poster-wrap{
+  .calendar-wrap{
     @include m.glass;
     border-radius: var(--r-xl);
     padding: 14px;
     margin-bottom: 14px;
   }
-  .poster-head{
+  .calendar-head{
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
-  .poster-card{
-    border-radius: var(--r-lg);
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.14);
-    padding: 12px;
-  }
-  .poster-title{
-    font-size: 16px;
+  .calendar-month{
+    font-size: 18px;
     font-weight: 700;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
-  .poster-sub{
-    color: rgba(255,255,255,.72);
-    font-size: 13px;
-    margin-bottom: 10px;
-  }
-  .poster-image{
-    width: 100%;
-    max-height: 420px;
-    object-fit: contain;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.24);
-    display: block;
-  }
-  .poster-empty{
-    border-radius: 12px;
-    border: 1px dashed rgba(255,255,255,.18);
-    background: rgba(0,0,0,.14);
-    min-height: 210px;
+  .calendar-weekdays{
     display: grid;
-    place-items: center;
-    color: rgba(255,255,255,.56);
-    font-size: 14px;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 8px;
+    color: rgba(255,255,255,.66);
+    font-size: 12px;
+    text-align: center;
+  }
+  .calendar-weekdays span{
+    padding: 4px 0;
   }
 
-  .list{ display: grid; gap: 10px; }
-  .row{
+  :global(.calendar-grid){
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+  }
+  :global(.cal-cell){
+    min-height: 64px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.18);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  :global(.cal-cell.is-empty){
+    border-style: dashed;
+    opacity: .32;
+  }
+  :global(.cal-cell.is-today){
+    border-color: rgba(160,225,196,.58);
+    box-shadow: 0 0 0 1px rgba(160,225,196,.24) inset;
+  }
+  :global(.cal-day){
+    font-size: 12px;
+    color: rgba(255,255,255,.82);
+  }
+  :global(.cal-marks){
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  :global(.cal-mark){
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  #saved-list{
+    display: grid;
+    gap: 10px;
+  }
+  :global(.saved-card){
     @include m.glass;
     border-radius: var(--r-lg);
     padding: 12px;
     display: grid;
-    grid-template-columns: 200px 1fr 64px;
+    grid-template-columns: 1fr 220px;
     gap: 12px;
     align-items: center;
   }
-  .when{ font-size: 13px; color: rgba(255,255,255,.70); }
-  .t{ font-weight: 700; }
-  .meta{ color: rgba(255,255,255,.60); font-size: 13px; margin-top: 6px; }
-  .muted{ color: rgba(255,255,255,.55); font-size: 12px; }
-  .link{
-    font-size: 12px;
-    padding: 7px 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.14);
+  :global(.saved-main){
+    min-width: 0;
   }
-  .link:hover{ background: rgba(0,0,0,.22); }
+  :global(.saved-when){
+    font-size: 13px;
+    color: rgba(255,255,255,.72);
+    margin-bottom: 6px;
+  }
+  :global(.saved-title){
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  :global(.saved-meta){
+    color: rgba(255,255,255,.62);
+    font-size: 13px;
+  }
+  :global(.saved-cover-wrap){
+    min-height: 120px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.14);
+    background: rgba(0,0,0,.2);
+  }
+  :global(.saved-cover){
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  :global(.saved-cover-miss){
+    width: 100%;
+    height: 100%;
+    min-height: 120px;
+    display: grid;
+    place-items: center;
+    color: rgba(255,255,255,.58);
+    font-size: 13px;
+  }
 
   .edit-btn{
     border: 1px solid rgba(255,255,255,.16);
@@ -355,6 +550,9 @@ const roomCoverMap = {
     padding: 7px 12px;
     font-size: 13px;
     cursor: pointer;
+  }
+  .edit-btn[hidden]{
+    display: none !important;
   }
   .edit-btn.primary{
     background: rgba(74, 206, 148, .18);
@@ -411,15 +609,7 @@ const roomCoverMap = {
     font-size: 12px;
     color: rgba(255,255,255,.78);
   }
-  .field input{
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,.16);
-    background: rgba(0,0,0,.34);
-    color: rgba(255,255,255,.92);
-    padding: 10px;
-    font-size: 14px;
-    font-family: inherit;
-  }
+  .field input,
   .field select{
     border-radius: 10px;
     border: 1px solid rgba(255,255,255,.16);
@@ -429,17 +619,27 @@ const roomCoverMap = {
     font-size: 14px;
     font-family: inherit;
   }
+  .field input[type="date"],
+  .field input[type="time"]{
+    color-scheme: dark;
+    padding-right: 42px;
+  }
+  .field input[type="date"]::-webkit-calendar-picker-indicator,
+  .field input[type="time"]::-webkit-calendar-picker-indicator{
+    opacity: .95;
+    filter: invert(1) brightness(1.2);
+    cursor: pointer;
+  }
   .cover-preview{
     width: 100%;
-    max-height: 320px;
+    max-height: 260px;
     object-fit: contain;
     border-radius: 12px;
     border: 1px solid rgba(255,255,255,.2);
     background: rgba(0,0,0,.2);
   }
-  .path-note{
-    margin: 4px 0 0;
-    color: rgba(255,255,255,.62);
+  .muted{
+    color: rgba(255,255,255,.56);
     font-size: 12px;
   }
   .editor-actions{
@@ -449,8 +649,15 @@ const roomCoverMap = {
   }
 
   @media (max-width: 860px){
-    .row{ grid-template-columns: 1fr; }
-    .go{ justify-self: start; }
+    :global(.saved-card){
+      grid-template-columns: 1fr;
+    }
+    :global(.calendar-grid){
+      gap: 6px;
+    }
+    :global(.cal-cell){
+      min-height: 56px;
+    }
   }
   </style>
 </BaseLayout>

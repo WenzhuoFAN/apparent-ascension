@@ -6,9 +6,11 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "start": "serve dist -l $PORT",
+    "start": "node dist/server/entry.mjs",
     "heroku-postbuild": "npm run build",
     "astro": "astro",
+    "db:init": "node scripts/init-db.mjs",
+    "admin:create": "node scripts/create-admin.mjs",
     "fetch:metrics": "node scripts/fetch-metrics.mjs",
     "set:bili-cookie": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/set-bili-cookie-from-curl.ps1",
     "extract:schedule:image": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/extract-schedule-from-image.ps1",
@@ -16,7 +18,9 @@
     "update:schedule:from-pinned": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-schedule-from-pinned.ps1"
   },
   "dependencies": {
+    "@astrojs/node": "^9.5.0",
     "astro": "^5.17.1",
+    "pg": "^8.16.3",
     "sass": "^1.97.3",
     "serve": "^14.2.5"
   },

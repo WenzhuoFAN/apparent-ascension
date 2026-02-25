@@ -1,4 +1,4 @@
----
+﻿---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import NavBar from "../components/NavBar.astro";
 import Hero from "../components/Hero.astro";
@@ -6,21 +6,6 @@ import Section from "../components/Section.astro";
 import TagPills from "../components/TagPills.astro";
 
 import { getCollection } from "astro:content";
-import { formatDateTimeCN } from "../utils/date";
-
-const scheduleEntries = await getCollection("schedule");
-const schedules = scheduleEntries
-  .map((e) => ({ ...e.data, slug: e.slug }))
-  .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
-
-const scheduleItems = schedules.flatMap((w) =>
-  w.items.map((it) => ({
-    ...it,
-    weekStart: w.weekStart,
-  }))
-).sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
-
-const upcoming = scheduleItems.slice(0, 3);
 
 const clips = await getCollection("clips");
 const fanworks = await getCollection("fanworks");
@@ -29,41 +14,17 @@ const latestRecs = [...clips, ...fanworks]
   .slice(0, 6);
 ---
 
-<BaseLayout title="闪耀舞台｜非官方粉丝站" description="入坑导航｜日程表｜直播记录｜数据｜精选二创/切片">
+<BaseLayout title="闪耀舞台｜粉丝导航站" description="入坑导航、日程表、直播记录、精选与数据">
   <NavBar slot="nav" active="home" />
 
   <Hero
     title="闪耀舞台 · 粉丝导航站"
-    tagline="给新粉一条最短的入坑路(目标)，信息入口：日程表、直播记录、数据成长、精选二创/切片。(网站作者是26年1月入坑的易拉罐，欢迎一起完善内容！)"
+    tagline="给新粉一条最短入坑路径，信息入口：日程表、直播记录、粉丝数据、精选内容。"
   />
 
   <Section title="本周日程">
-    {upcoming.length ? (
-      <div class="grid">
-        {upcoming.map((it) => (
-          <div class="row">
-            <div class="when">{formatDateTimeCN(it.startAt)}</div>
-            <div class="what">
-              <div class="t">{it.title}</div>
-              <div class="m">
-                <span class="pill">{it.member}</span>
-                {it.type && <span class="pill faint">{it.type}</span>}
-                <span class="pill faint">week {it.weekStart}</span>
-              </div>
-            </div>
-            <div class="go">
-              {it.link ? (
-                <a class="link" href={it.link} target="_blank" rel="noreferrer">链接</a>
-              ) : (
-                <span class="muted">待补</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    ) : (
-      <p class="p">还没有日程表数据。去 src/content/schedule 新建一个文件吧～</p>
-    )}
+    <div id="home-schedule-list"></div>
+    <p class="p" id="home-schedule-empty" hidden>暂无已保存日程。</p>
   </Section>
 
   <Section title="最新推荐">
@@ -82,8 +43,114 @@ const latestRecs = [...clips, ...fanworks]
     </div>
   </Section>
 
+  <script is:inline>
+    (() => {
+      const contentKey = "schedule.manual.entries.v3";
+      const listEl = document.getElementById("home-schedule-list");
+      const emptyEl = document.getElementById("home-schedule-empty");
+      if (!listEl || !emptyEl) return;
+
+      const roomLabelMap = {
+        fiona: "心宜",
+        gladys: "思诺",
+      };
+
+      const formatDateCN = (date) => {
+        const m = String(date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return date || "--";
+        return `${Number(m[1])}年${Number(m[2])}月${Number(m[3])}日`;
+      };
+
+      const sortEntries = (entries) =>
+        [...entries].sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
+
+      const pickUpcoming = (entries) => {
+        const now = Date.now();
+        const upcoming = entries.filter((entry) => {
+          const ts = new Date(`${entry.date}T${entry.time}:00`).getTime();
+          return Number.isFinite(ts) && ts >= now;
+        });
+        return (upcoming.length ? upcoming : entries).slice(0, 3);
+      };
+
+      const createRow = (entry) => {
+        const row = document.createElement("div");
+        row.className = "row";
+
+        const when = document.createElement("div");
+        when.className = "when";
+        when.textContent = `${formatDateCN(entry.date)} ${entry.time}`;
+
+        const what = document.createElement("div");
+        what.className = "what";
+        const title = document.createElement("div");
+        title.className = "t";
+        title.textContent = entry.title || "未命名日程";
+        const meta = document.createElement("div");
+        meta.className = "m";
+        const room = document.createElement("span");
+        room.className = "pill";
+        room.textContent = `直播间：${roomLabelMap[entry.room] || entry.room || "--"}`;
+        meta.appendChild(room);
+        what.append(title, meta);
+
+        const go = document.createElement("div");
+        go.className = "go";
+        const link = document.createElement("a");
+        link.className = "link";
+        link.href = "/schedule";
+        link.textContent = "查看";
+        go.appendChild(link);
+
+        row.append(when, what, go);
+        return row;
+      };
+
+      const render = (entries) => {
+        listEl.innerHTML = "";
+        if (!entries.length) {
+          emptyEl.hidden = false;
+          return;
+        }
+        emptyEl.hidden = true;
+        entries.forEach((entry) => listEl.appendChild(createRow(entry)));
+      };
+
+      const load = async () => {
+        try {
+          const response = await fetch(`/api/content/${encodeURIComponent(contentKey)}`, { cache: "no-store" });
+          const json = await response.json();
+          if (!response.ok || !json?.ok || !Array.isArray(json.data)) {
+            render([]);
+            return;
+          }
+
+          const normalized = json.data.filter((entry) => {
+            if (!entry || typeof entry !== "object") return false;
+            if (typeof entry.title !== "string") return false;
+            if (typeof entry.date !== "string") return false;
+            if (typeof entry.time !== "string") return false;
+            if (entry.room !== "fiona" && entry.room !== "gladys") return false;
+            return true;
+          });
+
+          render(pickUpcoming(sortEntries(normalized)));
+        } catch {
+          render([]);
+        }
+      };
+
+      load();
+    })();
+  </script>
+
   <style lang="scss">
   @use "../styles/mixins" as m;
+
+  #home-schedule-list{
+    display: grid;
+    gap: 10px;
+  }
 
   .row{
     @include m.glass;
@@ -95,6 +162,7 @@ const latestRecs = [...clips, ...fanworks]
     align-items: center;
   }
   .when{ font-size: 13px; color: rgba(255,255,255,.70); }
+  .what{ min-width: 0; }
   .t{ font-weight: 700; }
   .m{ display:flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
   .pill{
@@ -126,6 +194,12 @@ const latestRecs = [...clips, ...fanworks]
   .rt{ font-weight: 700; margin-bottom: 6px; }
   .rd{ color: rgba(255,255,255,.65); font-size: 13px; min-height: 34px; }
   .meta{ display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 8px; }
+
+  @media (max-width: 860px){
+    .row{
+      grid-template-columns: 1fr;
+    }
+  }
   </style>
 </BaseLayout>
 

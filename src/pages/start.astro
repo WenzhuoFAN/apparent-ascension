@@ -31,7 +31,6 @@ const mustTag = "入坑必看";
 const kiloTag = "千克必看";
 const allClips = await getCollection("clips");
 const allFanworks = await getCollection("fanworks");
-const adminKeyHash = (import.meta.env.PUBLIC_START_ADMIN_KEY_HASH ?? "").trim().toLowerCase();
 
 const mustClips = allClips.filter((x) => x.data.tags.includes(mustTag)).slice(0, 6);
 const mustFanworks = allFanworks.filter((x) => x.data.tags.includes(mustTag)).slice(0, 6);
@@ -180,15 +179,15 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
     </div>
   </div>
 
-  <script define:vars={{ adminKeyHash }}>
+  <script>
     (() => {
       const STORAGE_KEY = "start.custom.recs.v1";
       const HIDDEN_STATIC_KEY = "start.hidden.static.recs.v1";
-      const ADMIN_AUTH_SESSION_KEY = "start.admin.authed.v1";
       const VIEW_API = "https://api.bilibili.com/x/web-interface/view";
-      const ADMIN_KEY_HASH = String(adminKeyHash || "").trim().toLowerCase();
-      let isAdmin = ADMIN_KEY_HASH.length === 0;
+      let isAdmin = false;
       let editMode = false;
+      let customState = [];
+      let hiddenStaticState = [];
 
       const mustGrid = document.getElementById("must-rec-grid");
       const kiloGrid = document.getElementById("kilo-rec-grid");
@@ -212,6 +211,21 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
 
       if (!mustGrid || !kiloGrid || !modal || !openBtn || !closeBtn || !cancelBtn || !fetchBtn || !saveBtn) return;
       if (!linkInput || !sectionInput || !titleInput || !coverInput || !reasonInput || !statusEl || !coverPreview) return;
+      openBtn.hidden = true;
+
+      const contentUrl = (key, admin = false) =>
+        `${admin ? "/api/admin/content/" : "/api/content/"}${encodeURIComponent(key)}`;
+
+      const fetchJson = async (url, init = {}) => {
+        const response = await fetch(url, { cache: "no-store", ...init });
+        let payload = null;
+        try {
+          payload = await response.json();
+        } catch {
+          payload = null;
+        }
+        return { response, payload };
+      };
 
       const showStatus = (msg, isErr = false) => {
         statusEl.textContent = msg || "";
@@ -235,58 +249,33 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
       };
 
       const readHiddenStatic = () => {
-        try {
-          const raw = localStorage.getItem(HIDDEN_STATIC_KEY);
-          if (!raw) return [];
-          const parsed = JSON.parse(raw);
-          return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
-        } catch {
-          return [];
+        return [...hiddenStaticState];
+      };
+
+      const writeHiddenStatic = async (keys) => {
+        hiddenStaticState = Array.isArray(keys) ? keys.filter((x) => typeof x === "string") : [];
+        if (!isAdmin) return true;
+
+        const { response, payload } = await fetchJson(contentUrl(HIDDEN_STATIC_KEY, true), {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ data: hiddenStaticState }),
+        });
+
+        if (response.status === 401) {
+          isAdmin = false;
+          openBtn.hidden = true;
+          editMode = false;
+          showStatus("管理员会话已失效，请先去 /admin 登录。", true);
+          return false;
         }
-      };
-
-      const writeHiddenStatic = (keys) => {
-        localStorage.setItem(HIDDEN_STATIC_KEY, JSON.stringify(keys));
-      };
-
-      const parseAdminKeyCandidates = () => {
-        const url = new URL(window.location.href);
-        const keys = [];
-        const fromQuery = url.searchParams.get("admin");
-        if (fromQuery) keys.push(fromQuery);
-
-        const fromPath = url.pathname.match(/\/start\/([^/?#]+)/i);
-        if (fromPath?.[1]) keys.push(fromPath[1]);
-
-        const hash = url.hash.replace(/^#/, "");
-        const hashKV = hash.match(/^admin=(.+)$/i);
-        if (hashKV?.[1]) keys.push(decodeURIComponent(hashKV[1]));
-        const hashPath = hash.match(/^\/?admin\/(.+)$/i);
-        if (hashPath?.[1]) keys.push(decodeURIComponent(hashPath[1]));
-
-        return keys.filter((x) => x && x.length > 0);
-      };
-
-      const clearAdminKeyFromUrl = () => {
-        const url = new URL(window.location.href);
-        const hadQuery = url.searchParams.has("admin");
-        if (hadQuery) url.searchParams.delete("admin");
-
-        const hash = url.hash.replace(/^#/, "");
-        const hadHash = /^admin=.+$/i.test(hash) || /^\/?admin\/.+$/i.test(hash);
-        if (hadHash) url.hash = "";
-
-        if (hadQuery || hadHash) {
-          history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+        if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+          showStatus(`保存失败：${payload?.message || response.statusText}`, true);
+          return false;
         }
-      };
 
-      const sha256Hex = async (text) => {
-        const raw = new TextEncoder().encode(text);
-        const buf = await crypto.subtle.digest("SHA-256", raw);
-        return Array.from(new Uint8Array(buf))
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
+        hiddenStaticState = payload.data.filter((x) => typeof x === "string");
+        return true;
       };
 
       const fetchViaJsonp = (url, timeoutMs = 12000) =>
@@ -321,59 +310,71 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
           document.head.appendChild(script);
         });
 
-      const ensureAdminAccess = async () => {
-        if (!ADMIN_KEY_HASH) {
-          isAdmin = true;
-          openBtn.hidden = false;
-          return;
-        }
+      const loadStateFromServer = async () => {
+        try {
+          const [customRes, hiddenRes] = await Promise.all([
+            fetchJson(contentUrl(STORAGE_KEY)),
+            fetchJson(contentUrl(HIDDEN_STATIC_KEY)),
+          ]);
 
-        if (sessionStorage.getItem(ADMIN_AUTH_SESSION_KEY) === "1") {
-          isAdmin = true;
-          openBtn.hidden = false;
-          return;
+          customState =
+            customRes.response.ok && customRes.payload?.ok && Array.isArray(customRes.payload.data)
+              ? customRes.payload.data
+              : [];
+          hiddenStaticState =
+            hiddenRes.response.ok && hiddenRes.payload?.ok && Array.isArray(hiddenRes.payload.data)
+              ? hiddenRes.payload.data.filter((x) => typeof x === "string")
+              : [];
+        } catch {
+          customState = [];
+          hiddenStaticState = [];
         }
+      };
 
-        const candidates = parseAdminKeyCandidates();
-        for (const key of candidates) {
-          try {
-            const hash = await sha256Hex(key);
-            if (hash === ADMIN_KEY_HASH) {
-              sessionStorage.setItem(ADMIN_AUTH_SESSION_KEY, "1");
-              clearAdminKeyFromUrl();
-              isAdmin = true;
-              openBtn.hidden = false;
-              return;
-            }
-          } catch {
-            // ignore hash errors
+      const loadAdminState = async () => {
+        try {
+          const { response, payload } = await fetchJson("/api/admin/session");
+          if (!response.ok) {
+            isAdmin = false;
+            openBtn.hidden = true;
+            return;
           }
+          isAdmin = !!payload?.authenticated;
+          openBtn.hidden = !isAdmin;
+        } catch {
+          isAdmin = false;
+          openBtn.hidden = true;
         }
-
-        isAdmin = false;
-        openBtn.hidden = true;
-        modal.hidden = true;
       };
 
       const readCustom = () => {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return [];
-          const parsed = JSON.parse(raw);
-          if (!Array.isArray(parsed)) return [];
-          return parsed.filter((x) =>
-            x &&
-            (x.section === "must" || x.section === "kilo") &&
-            typeof x.url === "string" &&
-            typeof x.title === "string"
-          );
-        } catch {
-          return [];
-        }
+        return [...customState];
       };
 
-      const writeCustom = (items) => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      const writeCustom = async (items) => {
+        customState = Array.isArray(items) ? items : [];
+        if (!isAdmin) return true;
+
+        const { response, payload } = await fetchJson(contentUrl(STORAGE_KEY, true), {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ data: customState }),
+        });
+
+        if (response.status === 401) {
+          isAdmin = false;
+          openBtn.hidden = true;
+          editMode = false;
+          showStatus("管理员会话已失效，请先去 /admin 登录。", true);
+          return false;
+        }
+        if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+          showStatus(`保存失败：${payload?.message || response.statusText}`, true);
+          return false;
+        }
+
+        customState = payload.data;
+        return true;
       };
 
       const createCard = (item) => {
@@ -464,7 +465,7 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
         document.querySelectorAll(".rec-delete").forEach((x) => x.remove());
       };
 
-      const deleteCard = (card) => {
+      const deleteCard = async (card) => {
         const title = card.querySelector(".t")?.textContent?.trim() || "该条目";
         if (!confirm(`确定删除「${title}」吗？`)) return;
 
@@ -472,12 +473,14 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
         const recKey = card.getAttribute("data-rec-key") || "";
         if (source === "custom") {
           const next = readCustom().filter((x) => x.id !== recKey);
-          writeCustom(next);
+          const ok = await writeCustom(next);
+          if (!ok) return;
         } else if (source === "static" && recKey) {
           const hidden = readHiddenStatic();
           if (!hidden.includes(recKey)) {
             hidden.push(recKey);
-            writeHiddenStatic(hidden);
+            const ok = await writeHiddenStatic(hidden);
+            if (!ok) return;
           }
         }
 
@@ -498,10 +501,10 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
           del.className = "rec-delete";
           del.textContent = "×";
           del.setAttribute("aria-label", "删除条目");
-          del.addEventListener("click", (event) => {
+          del.addEventListener("click", async (event) => {
             event.preventDefault();
             event.stopPropagation();
-            deleteCard(card);
+            await deleteCard(card);
           });
           card.appendChild(del);
         });
@@ -617,7 +620,7 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
         }
       };
 
-      const saveEntry = () => {
+      const saveEntry = async () => {
         if (!isAdmin) return;
         const item = {
           id: (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`).toString(),
@@ -639,7 +642,8 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
         }
 
         const next = [item, ...readCustom()].slice(0, 60);
-        writeCustom(next);
+        const ok = await writeCustom(next);
+        if (!ok) return;
         applyHiddenStatic();
         renderCustomCards();
         closeModal();
@@ -666,7 +670,9 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
       closeBtn.addEventListener("click", closeModal);
       cancelBtn.addEventListener("click", closeModal);
       fetchBtn.addEventListener("click", fetchMeta);
-      saveBtn.addEventListener("click", saveEntry);
+      saveBtn.addEventListener("click", async () => {
+        await saveEntry();
+      });
       coverInput.addEventListener("input", syncCoverPreview);
       linkInput.addEventListener("change", () => {
         if (normalizeUrl(linkInput.value)) fetchMeta();
@@ -681,7 +687,7 @@ const kiloFanworks = allFanworks.filter((x) => x.data.tags.includes(kiloTag)).sl
       });
 
       (async () => {
-        await ensureAdminAccess();
+        await Promise.all([loadStateFromServer(), loadAdminState()]);
         applyHiddenStatic();
         renderCustomCards();
         renderEditOverlays();
