@@ -1,6 +1,20 @@
 import { Pool, type QueryResult } from "pg";
 
-const connectionString = String(import.meta.env.DATABASE_URL || process.env.DATABASE_URL || "").trim();
+const pickConnectionString = () => {
+  const direct =
+    import.meta.env.DATABASE_URL || process.env.DATABASE_URL || process.env.DATABASE || "";
+  if (String(direct).trim()) return String(direct).trim();
+
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key.startsWith("HEROKU_POSTGRESQL_") && key.endsWith("_URL") && String(value || "").trim()) {
+      return String(value).trim();
+    }
+  }
+
+  return "";
+};
+
+const connectionString = pickConnectionString();
 
 declare global {
   // eslint-disable-next-line no-var
@@ -69,4 +83,3 @@ export const query = async <T = unknown>(sql: string, params: unknown[] = []): P
   const pool = getPool();
   return pool.query<T>(sql, params);
 };
-

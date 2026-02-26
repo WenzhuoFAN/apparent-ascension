@@ -28,10 +28,6 @@ const memberLinks = [
 ---
 <header class="container" style="padding-top: 18px;">
   <nav class="nav">
-    <div class="brand">
-      <div class="title">闪耀舞台</div>
-    </div>
-
     <div class="links" role="navigation" aria-label="Site">
       {items.map((it) => (
         <a class:list={["a", active === it.key && "active"]} href={it.href}>
@@ -125,34 +121,30 @@ const memberLinks = [
 .nav{
   @include m.glass;
   border-radius: var(--r-lg);
-  padding: 14px 14px;
+  padding: 14px 16px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 10px;
   align-items: center;
 }
 
-.brand{
-  display: flex;
-  align-items: center;
-}
-.title{
-  font-weight: 700;
-  letter-spacing: .6px;
-  white-space: nowrap;
-}
-
 .links{
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
   min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.links::-webkit-scrollbar{
+  display: none;
 }
 .a{
   padding: 8px 10px;
   border-radius: 999px;
-  font-size: 13px;
+  font-size: 14px;
   white-space: nowrap;
   color: rgba(255,255,255,.72);
   border: 1px solid transparent;
@@ -176,7 +168,7 @@ const memberLinks = [
 }
 .pill{
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 13px;
   color: rgba(255,255,255,.82);
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(0,0,0,.16);
@@ -219,7 +211,7 @@ const memberLinks = [
   border: 1px solid rgba(90,235,142,.45);
   background: rgba(27,123,67,.25);
   color: rgba(201,255,219,.92);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: .4px;
@@ -241,6 +233,6 @@ const memberLinks = [
 @media (max-width: 980px){
   .nav{ grid-template-columns: 1fr; }
   .ext{ justify-content: start; flex-wrap: wrap; }
-  .links{ justify-content: start; }
+  .links{ justify-content: start; overflow-x: visible; flex-wrap: wrap; }
 }
 </style>
