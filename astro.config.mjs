@@ -9,6 +9,9 @@ export default defineConfig({
     mode: 'standalone',
   }),
   vite: {
+    ssr: {
+      external: ['pg'],
+    },
     server: {
       allowedHosts: true,
     },

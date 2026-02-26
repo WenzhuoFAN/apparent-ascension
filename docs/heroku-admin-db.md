@@ -40,3 +40,6 @@ npm run admin:create -- admin yourStrongPassword123
 ## 6. Heroku 运行模式
 - 项目已改为 Astro Node SSR（不是纯静态 `serve dist`）。
 - `start` 脚本：`node dist/server/entry.mjs`
+
+npm run db:init
+npm run admin:create -- "1363764368w@gmail.com" "你的新强密码"
