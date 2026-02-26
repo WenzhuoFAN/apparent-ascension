@@ -1,4 +1,4 @@
----
+﻿---
 const { active = "" } = Astro.props;
 const items = [
   { href: "/", label: "首页", key: "home" },
@@ -127,7 +127,7 @@ const memberLinks = [
   border-radius: var(--r-lg);
   padding: 14px 14px;
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: auto 1fr auto;
   gap: 10px;
   align-items: center;
 }
@@ -139,6 +139,7 @@ const memberLinks = [
 .title{
   font-weight: 700;
   letter-spacing: .6px;
+  white-space: nowrap;
 }
 
 .links{
@@ -146,11 +147,13 @@ const memberLinks = [
   gap: 6px;
   flex-wrap: wrap;
   justify-content: center;
+  min-width: 0;
 }
 .a{
   padding: 8px 10px;
   border-radius: 999px;
   font-size: 13px;
+  white-space: nowrap;
   color: rgba(255,255,255,.72);
   border: 1px solid transparent;
   transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
