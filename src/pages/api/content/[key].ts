@@ -1,5 +1,7 @@
 import type { APIRoute } from "astro";
-import { PUBLIC_CONTENT_KEYS, getContentByKey } from "../../../lib/content-store";
+import { CONTENT_KEYS, PUBLIC_CONTENT_KEYS, getContentByKey } from "../../../lib/content-store";
+
+const isObject = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object";
 
 export const GET: APIRoute = async ({ params }) => {
   try {
@@ -11,7 +13,10 @@ export const GET: APIRoute = async ({ params }) => {
       });
     }
 
-    const data = await getContentByKey(key);
+    let data = await getContentByKey(key);
+    if (key === CONTENT_KEYS.notices && Array.isArray(data)) {
+      data = data.filter((row) => isObject(row) && row.published === true);
+    }
     return new Response(JSON.stringify({ ok: true, key, data }), {
       status: 200,
       headers: {
@@ -32,4 +37,3 @@ export const GET: APIRoute = async ({ params }) => {
     );
   }
 };
-

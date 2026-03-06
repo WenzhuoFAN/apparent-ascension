@@ -4,10 +4,11 @@ import NavBar from "../../components/NavBar.astro";
 import Section from "../../components/Section.astro";
 import Card from "../../components/Card.astro";
 
-import { getCollection } from "astro:content";
+import { getAllRecommendations } from "../../lib/recommendations";
 
-const clips = (await getCollection("clips")).filter(x => x.data.member === "gladys" || x.data.member === "both").slice(0, 6);
-const fanworks = (await getCollection("fanworks")).filter(x => x.data.member === "gladys" || x.data.member === "both").slice(0, 6);
+const { clips: allClips, fanworks: allFanworks } = await getAllRecommendations();
+const clips = allClips.filter((x) => x.member === "gladys" || x.member === "both").slice(0, 6);
+const fanworks = allFanworks.filter((x) => x.member === "gladys" || x.member === "both").slice(0, 6);
 ---
 <BaseLayout title="Gladys（思诺）｜成员页" description="关键词、风格、推荐观看清单、常用链接">
   <NavBar slot="nav" />
@@ -35,9 +36,9 @@ const fanworks = (await getCollection("fanworks")).filter(x => x.data.member ===
   <Section title="推荐内容（从精选库聚合）">
     <div class="grid cols-3">
       {[...fanworks, ...clips].slice(0, 6).map((r) => (
-        <a class="rec" href={r.data.url} target="_blank" rel="noreferrer">
-          <div class="t">{r.data.title}</div>
-          <div class="d">{r.data.reason ?? ""}</div>
+        <a class="rec" href={r.url} target="_blank" rel="noreferrer">
+          <div class="t">{r.title}</div>
+          <div class="d">{r.reason ?? ""}</div>
         </a>
       ))}
     </div>

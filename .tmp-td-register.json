@@ -1,0 +1,79 @@
+{
+    "taskRoleArn":  "arn:aws:iam::000377555411:role/ecsTaskExecutionRole",
+    "volumes":  [
+
+                ],
+    "networkMode":  "awsvpc",
+    "placementConstraints":  [
+
+                             ],
+    "cpu":  "1024",
+    "runtimePlatform":  {
+                            "cpuArchitecture":  "X86_64",
+                            "operatingSystemFamily":  "LINUX"
+                        },
+    "memory":  "2048",
+    "executionRoleArn":  "arn:aws:iam::000377555411:role/ecsTaskExecutionRole",
+    "requiresCompatibilities":  [
+                                    "FARGATE"
+                                ],
+    "containerDefinitions":  [
+                                 {
+                                     "name":  "Main",
+                                     "image":  "000377555411.dkr.ecr.ap-northeast-1.amazonaws.com/fandg-f@sha256:620932b772d457045469001a1f754188f1074066a10c4436fb88e202ae5455a9",
+                                     "cpu":  1024,
+                                     "memory":  2048,
+                                     "memoryReservation":  2048,
+                                     "portMappings":  [
+                                                          {
+                                                              "containerPort":  8080,
+                                                              "hostPort":  8080,
+                                                              "protocol":  "tcp"
+                                                          }
+                                                      ],
+                                     "essential":  true,
+                                     "command":  [
+
+                                                 ],
+                                     "environment":  [
+                                                         {
+                                                             "name":  "HOST",
+                                                             "value":  "0.0.0.0"
+                                                         },
+                                                         {
+                                                             "name":  "NODE_ENV",
+                                                             "value":  "production"
+                                                         },
+                                                         {
+                                                             "name":  "DATABASE_URL",
+                                                             "value":  "postgresql://app_admin:wzf199810@fandg-database.c1qe664qiuui.ap-northeast-1.rds.amazonaws.com:5432/apparent_ascension"
+                                                         },
+                                                         {
+                                                             "name":  "PORT",
+                                                             "value":  "8080"
+                                                         }
+                                                     ],
+                                     "mountPoints":  [
+
+                                                     ],
+                                     "volumesFrom":  [
+
+                                                     ],
+                                     "secrets":  [
+
+                                                 ],
+                                     "logConfiguration":  {
+                                                              "logDriver":  "awslogs",
+                                                              "options":  {
+                                                                              "awslogs-group":  "/aws/ecs/default/fandg-f-3815-558b",
+                                                                              "awslogs-region":  "ap-northeast-1",
+                                                                              "awslogs-stream-prefix":  "ecs"
+                                                                          }
+                                                          },
+                                     "systemControls":  [
+
+                                                        ]
+                                 }
+                             ],
+    "family":  "default-fandg-f-3815"
+}

@@ -12,6 +12,7 @@
     "db:init": "node scripts/init-db.mjs",
     "admin:create": "node scripts/create-admin.mjs",
     "fetch:metrics": "node scripts/fetch-metrics.mjs",
+    "collect:live": "node scripts/collect-live-stats.mjs",
     "set:bili-cookie": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/set-bili-cookie-from-curl.ps1",
     "extract:schedule:image": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/extract-schedule-from-image.ps1",
     "fetch:schedule:image": "node scripts/fetch-pinned-schedule-image.mjs",

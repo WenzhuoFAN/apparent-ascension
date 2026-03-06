@@ -7,6 +7,7 @@ const items = [
   { href: "/library", label: "精选内容", key: "library" },
   { href: "/streams", label: "直播记录", key: "streams" },
   { href: "/stats", label: "粉丝数据", key: "stats" },
+  { href: "/notice", label: "公告", key: "notice" },
 ];
 
 const memberLinks = [
@@ -38,7 +39,14 @@ const memberLinks = [
 
     <div class="ext">
       {memberLinks.map((member) => (
-        <a class="pill member-pill" href={member.href} target="_blank" rel="noreferrer">
+        <a
+          class="pill member-pill"
+          href={member.href}
+          target="_blank"
+          rel="noreferrer"
+          data-member-link={member.key}
+          data-default-href={member.href}
+        >
           <img class="avatar" src={member.avatar} alt="" width="24" height="24" loading="lazy" decoding="async" />
           <span class="pill-label">{member.label}</span>
           <span class="pill-live" data-live-badge={member.key} hidden aria-live="polite">
@@ -52,14 +60,13 @@ const memberLinks = [
 </header>
 
 <script is:inline>
-  const LIVE_MEMBERS = [
-    { key: "fiona", uid: "3537115310721181" },
-    { key: "gladys", uid: "3537115310721781" },
-  ];
-  const LIVE_STATUS_API = "https://api.live.bilibili.com/room/v1/Room/getRoomInfoOld?mid=";
+  const LIVE_STATUS_API = "/api/live-status?members=fiona,gladys";
   const LIVE_CHECK_INTERVAL_MS = 60 * 1000;
   const liveBadges = new Map(
     Array.from(document.querySelectorAll("[data-live-badge]")).map((node) => [node.getAttribute("data-live-badge"), node])
+  );
+  const liveMemberLinks = new Map(
+    Array.from(document.querySelectorAll("[data-member-link]")).map((node) => [node.getAttribute("data-member-link"), node])
   );
 
   const setLiveBadge = (memberKey, isLive) => {
@@ -68,23 +75,36 @@ const memberLinks = [
     badge.hidden = !isLive;
   };
 
-  const isLiveByUid = async (uid) => {
+  const setMemberLink = (memberKey, isLive, liveUrl) => {
+    const link = liveMemberLinks.get(memberKey);
+    if (!(link instanceof HTMLAnchorElement)) return;
+
+    const defaultHref = link.getAttribute("data-default-href") || link.href;
+    if (isLive && typeof liveUrl === "string" && liveUrl) {
+      link.href = liveUrl;
+      link.title = "点击进入直播间";
+      return;
+    }
+
+    link.href = defaultHref;
+    link.removeAttribute("title");
+  };
+
+  const fetchLiveStatuses = async () => {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 6000);
 
     try {
-      const response = await fetch(`${LIVE_STATUS_API}${uid}`, {
+      const response = await fetch(LIVE_STATUS_API, {
         method: "GET",
-        mode: "cors",
         cache: "no-store",
         signal: controller.signal,
       });
       if (!response.ok) return null;
 
       const json = await response.json();
-      if (json?.code !== 0) return null;
-
-      return Number(json?.data?.liveStatus) === 1;
+      if (!json?.ok || !json?.statuses) return null;
+      return json.statuses;
     } catch {
       return null;
     } finally {
@@ -93,16 +113,15 @@ const memberLinks = [
   };
 
   const refreshLiveBadges = async () => {
-    const statuses = await Promise.all(
-      LIVE_MEMBERS.map(async (member) => ({
-        key: member.key,
-        live: await isLiveByUid(member.uid),
-      }))
-    );
+    const statuses = await fetchLiveStatuses();
+    if (!statuses) return;
 
-    statuses.forEach(({ key, live }) => {
-      if (live === null) return;
+    liveBadges.forEach((_, key) => {
+      const status = statuses?.[key];
+      const live = status?.live;
+      if (typeof live !== "boolean") return;
       setLiveBadge(key, live);
+      setMemberLink(key, live, status?.liveUrl);
     });
   };
 
@@ -215,6 +234,9 @@ const memberLinks = [
   line-height: 1;
   text-transform: uppercase;
   letter-spacing: .4px;
+}
+.pill-live[hidden]{
+  display: none !important;
 }
 .live-dot{
   width: 7px;

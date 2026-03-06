@@ -3,79 +3,128 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import NavBar from "../../components/NavBar.astro";
 import Section from "../../components/Section.astro";
 import TagPills from "../../components/TagPills.astro";
+import { getAllRecommendations } from "../../lib/recommendations";
+import { getStreamRecordBySlug } from "../../lib/streams-store";
 
-import { getCollection, getEntry } from "astro:content";
+import { getEntry } from "astro:content";
 import { formatDateCN } from "../../utils/date";
 
-export async function getStaticPaths() {
-  const all = await getCollection("streams");
-  return all.map((p) => ({ params: { slug: p.slug } }));
+const { slug } = Astro.params;
+const row = await getStreamRecordBySlug(String(slug || ""));
+if (!row) throw new Error(`Stream not found: ${slug}`);
+
+const contentEntry = await getEntry("streams", row.slug);
+const Content = contentEntry ? (await contentEntry.render()).Content : null;
+
+const { clips: clipsAll, fanworks: fanworksAll } = await getAllRecommendations();
+const relatedClips = clipsAll.filter((c) => row.relatedClips.includes(c.slug));
+const relatedFanworks = fanworksAll.filter((f) => row.relatedFanworks.includes(f.slug));
+
+function formatMoney(value: number | undefined) {
+  if (!value || value <= 0) return "¥0.00";
+  return `¥${value.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-const { slug } = Astro.params;
-const entry = await getEntry("streams", slug!);
-if (!entry) throw new Error(`Stream not found: ${slug}`);
-
-const { Content } = await entry.render();
-
-const clipsAll = await getCollection("clips");
-const fanworksAll = await getCollection("fanworks");
-
-const relatedClips = clipsAll.filter(c => entry.data.relatedClips.includes(c.slug));
-const relatedFanworks = fanworksAll.filter(f => entry.data.relatedFanworks.includes(f.slug));
+function formatDateTime(iso: string | undefined) {
+  if (!iso) return "--";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .format(d)
+    .replace(/\//g, "-");
+}
 ---
-<BaseLayout title={`${entry.data.title}｜直播记录`} description="直播详情：亮点摘要、回放链接、关联切片/二创">
+<BaseLayout title={`${row.title}｜直播记录`} description="直播详情：亮点摘要、回放链接、弹幕/峰值观看/营收">
   <NavBar slot="nav" active="streams" />
 
   <a href="/streams" class="back">← 返回直播列表</a>
 
-  <h1 class="h1">{entry.data.title}</h1>
+  <h1 class="h1">{row.title}</h1>
   <p class="p">
-    日期：{formatDateCN(entry.data.date)} · 成员：{entry.data.member}
-    {entry.data.durationMin && ` · 时长：${entry.data.durationMin} min`}
+    日期：{formatDateCN(row.date)} · 成员：{row.member}
+    {row.durationMin && ` · 时长：${row.durationMin} min`}
   </p>
 
   <div style="margin-top: 12px;">
-    <TagPills tags={entry.data.tags} />
+    <TagPills tags={row.tags} />
   </div>
 
+  <Section title="采集指标">
+    <div class="metrics-grid">
+      <div class="metric">
+        <div class="k">开始时间</div>
+        <div class="v">{formatDateTime(row.startedAt)}</div>
+      </div>
+      <div class="metric">
+        <div class="k">结束时间</div>
+        <div class="v">{formatDateTime(row.endedAt)}</div>
+      </div>
+      <div class="metric">
+        <div class="k">弹幕数量</div>
+        <div class="v">{(row.danmakuCount ?? 0).toLocaleString()}</div>
+      </div>
+      <div class="metric">
+        <div class="k">峰值实时观看</div>
+        <div class="v">{(row.peakRealtimeViewers ?? 0).toLocaleString()}</div>
+      </div>
+      <div class="metric">
+        <div class="k">营收（总）</div>
+        <div class="v">{formatMoney(row.revenueCny)}</div>
+      </div>
+      <div class="metric">
+        <div class="k">SC / 礼物</div>
+        <div class="v">{formatMoney(row.superChatRevenueCny)} / {formatMoney(row.giftRevenueCny)}</div>
+      </div>
+    </div>
+  </Section>
+
   <Section title="回放链接">
-    {entry.data.replayUrl ? (
-      <a class="biglink" href={entry.data.replayUrl} target="_blank" rel="noreferrer">{entry.data.replayUrl}</a>
+    {row.replayUrl ? (
+      <a class="biglink" href={row.replayUrl} target="_blank" rel="noreferrer">{row.replayUrl}</a>
     ) : (
       <p class="p">回放链接待补。</p>
     )}
   </Section>
 
   <Section title="亮点摘要">
-    {entry.data.highlights?.length ? (
+    {row.highlights?.length ? (
       <ul class="ul">
-        {entry.data.highlights.map((h) => <li>{h}</li>)}
+        {row.highlights.map((h) => <li>{h}</li>)}
       </ul>
     ) : (
-      <p class="p">暂无亮点摘要（建议 2~5 条即可，维护成本很低）。</p>
+      <p class="p">暂无亮点摘要。</p>
     )}
   </Section>
 
-  <Section title="详细记录">
-    <article class="md">
-      <Content />
-    </article>
-  </Section>
+  {Content && (
+    <Section title="详细记录">
+      <article class="md">
+        <Content />
+      </article>
+    </Section>
+  )}
 
   {(relatedClips.length || relatedFanworks.length) && (
     <Section title="关联内容">
       <div class="grid cols-2">
         {relatedClips.map((r) => (
-          <a class="rec" href={r.data.url} target="_blank" rel="noreferrer">
-            <div class="t">{r.data.title}</div>
-            <div class="d">{r.data.reason ?? ""}</div>
+          <a class="rec" href={r.url} target="_blank" rel="noreferrer">
+            <div class="t">{r.title}</div>
+            <div class="d">{r.reason ?? ""}</div>
           </a>
         ))}
         {relatedFanworks.map((r) => (
-          <a class="rec" href={r.data.url} target="_blank" rel="noreferrer">
-            <div class="t">{r.data.title}</div>
-            <div class="d">{r.data.reason ?? ""}</div>
+          <a class="rec" href={r.url} target="_blank" rel="noreferrer">
+            <div class="t">{r.title}</div>
+            <div class="d">{r.reason ?? ""}</div>
           </a>
         ))}
       </div>
@@ -83,50 +132,98 @@ const relatedFanworks = fanworksAll.filter(f => entry.data.relatedFanworks.inclu
   )}
 
   <style lang="scss">
-  @use "../../styles/mixins" as m;
+    @use "../../styles/mixins" as m;
 
-  .back{
-    display:inline-block;
-    margin-bottom:10px;
-    color: rgba(255,255,255,.72);
-  }
-  .back:hover{ color: rgba(255,255,255,.88); }
+    .back {
+      display: inline-block;
+      margin-bottom: 10px;
+      color: rgba(255, 255, 255, 0.72);
+    }
+    .back:hover {
+      color: rgba(255, 255, 255, 0.88);
+    }
 
-  .biglink{
-    display: inline-block;
-    padding: 10px 12px;
-    border-radius: 14px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.14);
-    word-break: break-all;
-  }
-  .biglink:hover{ background: rgba(0,0,0,.22); }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .metric {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.14);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    .k {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.65);
+      margin-bottom: 6px;
+    }
+    .v {
+      font-size: 15px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.92);
+      font-variant-numeric: tabular-nums;
+    }
 
-  .ul{
-    margin: 0;
-    padding-left: 18px;
-    color: rgba(255,255,255,.78);
-  }
-  .ul li{ margin: 6px 0; }
+    .biglink {
+      display: inline-block;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.14);
+      word-break: break-all;
+    }
+    .biglink:hover {
+      background: rgba(0, 0, 0, 0.22);
+    }
 
-  .md{
-    color: rgba(255,255,255,.78);
-  }
-  .md :global(a){
-    color: rgba(255,255,255,.92);
-    text-decoration: underline;
-    text-decoration-color: rgba(255,255,255,.28);
-    text-underline-offset: 3px;
-  }
+    .ul {
+      margin: 0;
+      padding-left: 18px;
+      color: rgba(255, 255, 255, 0.78);
+    }
+    .ul li {
+      margin: 6px 0;
+    }
 
-  .rec{
-    @include m.glass;
-    @include m.hover-float;
-    border-radius: var(--r-lg);
-    padding: 14px 14px;
-    display: block;
-  }
-  .t{ font-weight: 700; margin-bottom: 6px; }
-  .d{ color: rgba(255,255,255,.65); font-size: 13px; }
+    .md {
+      color: rgba(255, 255, 255, 0.78);
+    }
+    .md :global(a) {
+      color: rgba(255, 255, 255, 0.92);
+      text-decoration: underline;
+      text-decoration-color: rgba(255, 255, 255, 0.28);
+      text-underline-offset: 3px;
+    }
+
+    .rec {
+      @include m.glass;
+      @include m.hover-float;
+      border-radius: var(--r-lg);
+      padding: 14px 14px;
+      display: block;
+    }
+    .t {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .d {
+      color: rgba(255, 255, 255, 0.65);
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </BaseLayout>
+

@@ -1,0 +1,4 @@
+
+> apparent-ascension@0.0.1 collect:live
+> node scripts/collect-live-stats.mjs
+

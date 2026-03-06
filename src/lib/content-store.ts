@@ -3,7 +3,9 @@ import { query } from "./db";
 export const CONTENT_KEYS = {
   schedule: "schedule.manual.entries.v3",
   startCustom: "start.custom.recs.v1",
+  libraryCustom: "library.custom.recs.v1",
   startHiddenStatic: "start.hidden.static.recs.v1",
+  notices: "notice.announcements.v1",
 } as const;
 
 export const PUBLIC_CONTENT_KEYS = new Set<string>(Object.values(CONTENT_KEYS));
@@ -25,6 +27,25 @@ type StartCustomRec = {
   cover?: string;
   reason?: string;
   createdAt?: string;
+};
+
+type LibraryCustomRec = {
+  id: string;
+  url: string;
+  title: string;
+  cover?: string;
+  reason?: string;
+  createdAt?: string;
+};
+
+type NoticeEntry = {
+  id: string;
+  title?: string;
+  text: string;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string;
 };
 
 const isObject = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object";
@@ -77,22 +98,87 @@ const normalizeStartCustom = (value: unknown): StartCustomRec[] => {
   return out.slice(0, 120);
 };
 
+const normalizeLibraryCustom = (value: unknown): LibraryCustomRec[] => {
+  if (!Array.isArray(value)) return [];
+  const out: LibraryCustomRec[] = [];
+  for (const row of value) {
+    if (!isObject(row)) continue;
+    const id = clampString(row.id, 80);
+    const url = clampString(row.url, 500);
+    const title = clampString(row.title, 140);
+    const cover = clampString(row.cover, 500);
+    const reason = clampString(row.reason, 240);
+    if (!id || !url || !title) continue;
+    out.push({
+      id,
+      url,
+      title,
+      cover: cover || undefined,
+      reason: reason || undefined,
+      createdAt: clampString(row.createdAt, 64) || undefined,
+    });
+  }
+  return out.slice(0, 180);
+};
+
 const normalizeHiddenStatic = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return value.map((x) => clampString(x, 120)).filter(Boolean).slice(0, 200);
 };
 
+const normalizeNotices = (value: unknown): NoticeEntry[] => {
+  if (!Array.isArray(value)) return [];
+
+  const out: NoticeEntry[] = [];
+  const seen = new Set<string>();
+
+  for (const row of value) {
+    if (!isObject(row)) continue;
+
+    const id = clampString(row.id, 80);
+    if (!id || seen.has(id)) continue;
+
+    const text = clampString(row.text, 10_000);
+    const createdAt = clampString(row.createdAt, 64);
+    const updatedAt = clampString(row.updatedAt, 64);
+    if (!text || !createdAt || !updatedAt) continue;
+
+    seen.add(id);
+    out.push({
+      id,
+      title: clampString(row.title, 120) || undefined,
+      text,
+      published: !!row.published,
+      createdAt,
+      updatedAt,
+      publishedAt: clampString(row.publishedAt, 64) || undefined,
+    });
+  }
+
+  out.sort((a, b) => {
+    const aKey = a.publishedAt || a.updatedAt;
+    const bKey = b.publishedAt || b.updatedAt;
+    return bKey.localeCompare(aKey);
+  });
+
+  return out.slice(0, 500);
+};
+
 export const normalizeContentByKey = (key: string, value: unknown): unknown => {
   if (key === CONTENT_KEYS.schedule) return normalizeSchedule(value);
   if (key === CONTENT_KEYS.startCustom) return normalizeStartCustom(value);
+  if (key === CONTENT_KEYS.libraryCustom) return normalizeLibraryCustom(value);
   if (key === CONTENT_KEYS.startHiddenStatic) return normalizeHiddenStatic(value);
+  if (key === CONTENT_KEYS.notices) return normalizeNotices(value);
   throw new Error(`Unsupported content key: ${key}`);
 };
 
 const defaultValueByKey = (key: string): unknown => {
   if (key === CONTENT_KEYS.schedule) return [];
   if (key === CONTENT_KEYS.startCustom) return [];
+  if (key === CONTENT_KEYS.libraryCustom) return [];
   if (key === CONTENT_KEYS.startHiddenStatic) return [];
+  if (key === CONTENT_KEYS.notices) return [];
   return [];
 };
 
@@ -121,4 +207,3 @@ export const setContentByKey = async (key: string, value: unknown) => {
   );
   return normalized;
 };
-

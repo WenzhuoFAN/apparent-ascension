@@ -5,12 +5,11 @@ import Hero from "../components/Hero.astro";
 import Section from "../components/Section.astro";
 import TagPills from "../components/TagPills.astro";
 
-import { getCollection } from "astro:content";
+import { getAllRecommendations } from "../lib/recommendations";
 
-const clips = await getCollection("clips");
-const fanworks = await getCollection("fanworks");
+const { clips, fanworks } = await getAllRecommendations();
 const latestRecs = [...clips, ...fanworks]
-  .sort((a, b) => (b.data.createdAt ?? "").localeCompare(a.data.createdAt ?? ""))
+  .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
   .slice(0, 6);
 ---
 
@@ -22,7 +21,7 @@ const latestRecs = [...clips, ...fanworks]
     tagline="给新粉一条最短入坑路径，信息入口：日程表、直播记录、粉丝数据、精选内容。"
   />
 
-  <Section title="本周日程">
+  <Section title="本周日程" subtitle="按北京时间计算当前周（周一至周日）。">
     <div id="home-schedule-list"></div>
     <p class="p" id="home-schedule-empty" hidden>暂无已保存日程。</p>
   </Section>
@@ -30,14 +29,14 @@ const latestRecs = [...clips, ...fanworks]
   <Section title="最新推荐">
     <div class="grid cols-3">
       {latestRecs.map((r) => (
-        <a class="rec" href={r.data.url} target="_blank" rel="noreferrer" data-member={r.data.member} data-tags={r.data.tags.join(",")}>
-          <div class="rt">{r.data.title}</div>
-          <div class="rd">{r.data.reason ?? ""}</div>
+        <a class="rec" href={r.url} target="_blank" rel="noreferrer" data-member={r.member} data-tags={r.tags.join(",")}>
+          <div class="rt">{r.title}</div>
+          <div class="rd">{r.reason ?? ""}</div>
           <div class="meta">
-            <span class="pill">{r.data.member}</span>
-            <span class="pill faint">{r.collection}</span>
+            <span class="pill">{r.member}</span>
+            <span class="pill faint">{r.kind}</span>
           </div>
-          <TagPills tags={r.data.tags.slice(0, 3)} />
+          <TagPills tags={r.tags.slice(0, 3)} />
         </a>
       ))}
     </div>
@@ -54,6 +53,10 @@ const latestRecs = [...clips, ...fanworks]
         fiona: "心宜",
         gladys: "思诺",
       };
+      const roomCoverMap = {
+        fiona: "/images/FionaLive.jpg",
+        gladys: "/images/GladysLive.jpg",
+      };
 
       const formatDateCN = (date) => {
         const m = String(date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -64,45 +67,97 @@ const latestRecs = [...clips, ...fanworks]
       const sortEntries = (entries) =>
         [...entries].sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
 
-      const pickUpcoming = (entries) => {
-        const now = Date.now();
-        const upcoming = entries.filter((entry) => {
-          const ts = new Date(`${entry.date}T${entry.time}:00`).getTime();
-          return Number.isFinite(ts) && ts >= now;
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      const BJ_TZ = "Asia/Shanghai";
+      const weekdayMap = {
+        Sun: 0,
+        Mon: 1,
+        Tue: 2,
+        Wed: 3,
+        Thu: 4,
+        Fri: 5,
+        Sat: 6,
+      };
+
+      const toUtcDayTs = (year, month, day) => Date.UTC(year, month - 1, day);
+
+      const getBeijingDateParts = (date = new Date()) => {
+        const parts = new Intl.DateTimeFormat("en-US", {
+          timeZone: BJ_TZ,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          weekday: "short",
+        }).formatToParts(date);
+
+        const pick = (type) => parts.find((p) => p.type === type)?.value || "";
+        return {
+          year: Number(pick("year")),
+          month: Number(pick("month")),
+          day: Number(pick("day")),
+          weekday: pick("weekday"),
+        };
+      };
+
+      const getCurrentBeijingWeekRange = () => {
+        const today = getBeijingDateParts(new Date());
+        const weekDay = weekdayMap[today.weekday] ?? 0;
+        const mondayOffset = (weekDay + 6) % 7; // Mon=0 ... Sun=6
+        const todayTs = toUtcDayTs(today.year, today.month, today.day);
+        const weekStartTs = todayTs - mondayOffset * DAY_MS;
+        const weekEndTs = weekStartTs + 6 * DAY_MS;
+        return { weekStartTs, weekEndTs };
+      };
+
+      const parseEntryDateTs = (dateStr) => {
+        const m = String(dateStr || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return NaN;
+        return toUtcDayTs(Number(m[1]), Number(m[2]), Number(m[3]));
+      };
+
+      const pickCurrentWeek = (entries) => {
+        const { weekStartTs, weekEndTs } = getCurrentBeijingWeekRange();
+        return entries.filter((entry) => {
+          const dateTs = parseEntryDateTs(entry.date);
+          return Number.isFinite(dateTs) && dateTs >= weekStartTs && dateTs <= weekEndTs;
         });
-        return (upcoming.length ? upcoming : entries).slice(0, 3);
       };
 
       const createRow = (entry) => {
-        const row = document.createElement("div");
-        row.className = "row";
+        const row = document.createElement("a");
+        row.className = "schedule-row";
+        row.href = "/schedule";
+        row.setAttribute("aria-label", `${entry.title || "未命名日程"}，查看完整日程`);
+
+        const main = document.createElement("div");
+        main.className = "schedule-main";
 
         const when = document.createElement("div");
-        when.className = "when";
+        when.className = "schedule-when";
         when.textContent = `${formatDateCN(entry.date)} ${entry.time}`;
 
-        const what = document.createElement("div");
-        what.className = "what";
         const title = document.createElement("div");
-        title.className = "t";
+        title.className = "schedule-title";
         title.textContent = entry.title || "未命名日程";
+
         const meta = document.createElement("div");
-        meta.className = "m";
-        const room = document.createElement("span");
-        room.className = "pill";
-        room.textContent = `直播间：${roomLabelMap[entry.room] || entry.room || "--"}`;
-        meta.appendChild(room);
-        what.append(title, meta);
+        meta.className = "schedule-meta";
+        meta.textContent = `直播间：${roomLabelMap[entry.room] || entry.room || "--"}`;
+        main.append(when, title, meta);
 
-        const go = document.createElement("div");
-        go.className = "go";
-        const link = document.createElement("a");
-        link.className = "link";
-        link.href = "/schedule";
-        link.textContent = "查看";
-        go.appendChild(link);
+        const coverWrap = document.createElement("div");
+        coverWrap.className = "schedule-cover-wrap";
+        const cover = document.createElement("img");
+        cover.className = "schedule-cover";
+        cover.alt = "";
+        cover.loading = "lazy";
+        cover.src = roomCoverMap[entry.room] || roomCoverMap.fiona;
+        cover.onerror = () => {
+          coverWrap.hidden = true;
+        };
+        coverWrap.appendChild(cover);
 
-        row.append(when, what, go);
+        row.append(main, coverWrap);
         return row;
       };
 
@@ -134,7 +189,7 @@ const latestRecs = [...clips, ...fanworks]
             return true;
           });
 
-          render(pickUpcoming(sortEntries(normalized)));
+          render(sortEntries(pickCurrentWeek(normalized)));
         } catch {
           render([]);
         }
@@ -149,40 +204,62 @@ const latestRecs = [...clips, ...fanworks]
 
   #home-schedule-list{
     display: grid;
-    gap: 10px;
+    gap: 14px;
   }
 
-  .row{
+  :global(.schedule-row){
     @include m.glass;
+    @include m.hover-float;
     border-radius: var(--r-lg);
-    padding: 12px 12px;
+    padding: 12px;
     display: grid;
-    grid-template-columns: 180px 1fr 64px;
+    grid-template-columns: 1fr 220px;
     gap: 12px;
     align-items: center;
+    color: inherit;
+    text-decoration: none;
   }
-  .when{ font-size: 13px; color: rgba(255,255,255,.70); }
-  .what{ min-width: 0; }
-  .t{ font-weight: 700; }
-  .m{ display:flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
-  .pill{
-    padding: 4px 8px;
-    border-radius: 999px;
-    font-size: 12px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.18);
-    color: rgba(255,255,255,.78);
+  :global(.schedule-main){
+    min-width: 0;
   }
-  .pill.faint{ color: rgba(255,255,255,.62); }
-  .muted{ color: rgba(255,255,255,.55); font-size: 12px; }
-  .link{
-    font-size: 12px;
-    padding: 7px 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.14);
+  :global(.schedule-when){
+    font-size: 13px;
+    color: rgba(255,255,255,.72);
+    margin-bottom: 6px;
   }
-  .link:hover{ background: rgba(0,0,0,.22); }
+  :global(.schedule-title){
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  :global(.schedule-meta){
+    color: rgba(255,255,255,.62);
+    font-size: 13px;
+  }
+  :global(.schedule-cover-wrap){
+    justify-self: end;
+    width: 100%;
+    min-height: 120px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.14);
+    background: rgba(0,0,0,.2);
+  }
+  :global(.schedule-cover){
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: 0;
+    border: 0;
+    box-shadow: none;
+    transform: translateZ(0);
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  :global(.schedule-row:hover .schedule-cover){
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(0,0,0,.22);
+  }
 
   .rec{
     @include m.glass;
@@ -196,8 +273,13 @@ const latestRecs = [...clips, ...fanworks]
   .meta{ display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 8px; }
 
   @media (max-width: 860px){
-    .row{
+    :global(.schedule-row){
       grid-template-columns: 1fr;
+      padding: 14px;
+    }
+    :global(.schedule-cover-wrap){
+      justify-self: start;
+      width: 100%;
     }
   }
   </style>

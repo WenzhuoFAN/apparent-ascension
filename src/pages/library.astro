@@ -2,69 +2,656 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import NavBar from "../components/NavBar.astro";
 import Section from "../components/Section.astro";
-import FilterChips from "../components/FilterChips.astro";
-import TagPills from "../components/TagPills.astro";
-
-import { getCollection } from "astro:content";
-
-const clips = await getCollection("clips");
-const fanworks = await getCollection("fanworks");
-const all = [...clips.map(x=>({ ...x, kind: "clips" })), ...fanworks.map(x=>({ ...x, kind: "fanworks" }))];
-
-const items = all.sort((a, b) => (b.data.createdAt ?? "").localeCompare(a.data.createdAt ?? ""));
-const tags = Array.from(new Set(items.flatMap(i => i.data.tags))).filter(Boolean).slice(0, 30);
 ---
-<BaseLayout title="精选库｜闪耀舞台" description="优秀切片/二创/回放推荐，带标签筛选">
+
+<BaseLayout title="精选内容库｜闪耀舞台" description="管理员可维护的精选 B 站推荐内容">
   <NavBar slot="nav" active="library" />
 
   <h1 class="h1">精选内容库 ✨</h1>
-  <p class="p">这里是“传播力”最强的模块：每条内容都带一句推荐理由 + 标签，方便新粉快速吃到精华。</p>
 
-  <FilterChips tags={tags} targetSelector='[data-filter-item]' />
-
-  <Section title="全部推荐" subtitle="切片 + 二创（示例）按 createdAt 倒序。">
-    <div class="grid cols-3">
-      {items.map((r) => (
-        <a class="rec" href={r.data.url} target="_blank" rel="noreferrer"
-          data-filter-item
-          data-member={r.data.member}
-          data-tags={r.data.tags.join(",")}
-        >
-          <div class="rt">{r.data.title}</div>
-          <div class="rd">{r.data.reason ?? ""}</div>
-          <div class="meta">
-            <span class="pill">{r.data.member}</span>
-            <span class="pill faint">{r.kind}</span>
-            {r.data.author && <span class="pill faint">{r.data.author}</span>}
-          </div>
-          <TagPills tags={r.data.tags.slice(0, 6)} />
-        </a>
-      ))}
+  <Section title="最新推荐">
+    <div class="admin-bar">
+      <button class="admin-btn" id="open-library-admin" type="button" hidden>编辑</button>
+      <button class="admin-btn primary" id="add-library-entry" type="button" hidden>新增</button>
     </div>
 
-    {!items.length && <p class="p">还没有任何推荐条目。去 src/content/clips 或 src/content/fanworks 新建几个吧～</p>}
+    <div class="grid cols-3" id="library-rec-grid"></div>
+    <p class="p" id="library-empty-msg" hidden>暂无内容。</p>
   </Section>
+
+  <div class="admin-modal" id="library-admin-modal" hidden>
+    <div class="admin-panel">
+      <div class="admin-head">
+        <h3>精选内容编辑</h3>
+        <button class="admin-close" id="close-library-admin" type="button" aria-label="关闭">×</button>
+      </div>
+
+      <div class="admin-grid">
+        <label class="field full">
+          <span>B 站视频链接</span>
+          <input id="rec-link-input" placeholder="https://www.bilibili.com/video/BV..." type="url" />
+        </label>
+
+        <div class="field actions">
+          <span>自动配置</span>
+          <button class="admin-btn" id="fetch-rec-meta" type="button">抓取标题和封面</button>
+        </div>
+
+        <label class="field full">
+          <span>标题</span>
+          <input id="rec-title-input" placeholder="自动抓取后可再手改" type="text" />
+        </label>
+
+        <label class="field full">
+          <span>封面链接</span>
+          <input id="rec-cover-input" placeholder="自动抓取后会填好" type="url" />
+        </label>
+
+        <div class="field full">
+          <span>封面预览</span>
+          <img class="cover-preview" id="rec-cover-preview" alt="" hidden />
+        </div>
+
+        <label class="field full">
+          <span>推荐理由</span>
+          <textarea id="rec-reason-input" rows="3" placeholder="比如：这条先看，信息密度高。"></textarea>
+        </label>
+      </div>
+
+      <p class="admin-status" id="library-admin-status"></p>
+
+      <div class="admin-actions">
+        <button class="admin-btn primary" id="save-library-entry" type="button">保存到页面</button>
+        <button class="admin-btn" id="cancel-library-entry" type="button">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script is:inline>
+    (() => {
+      const STORAGE_KEY = "library.custom.recs.v1";
+      const VIEW_API = "https://api.bilibili.com/x/web-interface/view";
+      let isAdmin = false;
+      let editMode = false;
+      let itemsState = [];
+
+      const gridEl = document.getElementById("library-rec-grid");
+      const emptyEl = document.getElementById("library-empty-msg");
+      const openBtn = document.getElementById("open-library-admin");
+      const addBtn = document.getElementById("add-library-entry");
+
+      const modal = document.getElementById("library-admin-modal");
+      const closeBtn = document.getElementById("close-library-admin");
+      const cancelBtn = document.getElementById("cancel-library-entry");
+      const fetchBtn = document.getElementById("fetch-rec-meta");
+      const saveBtn = document.getElementById("save-library-entry");
+
+      const linkInput = document.getElementById("rec-link-input");
+      const titleInput = document.getElementById("rec-title-input");
+      const coverInput = document.getElementById("rec-cover-input");
+      const reasonInput = document.getElementById("rec-reason-input");
+      const coverPreview = document.getElementById("rec-cover-preview");
+      const statusEl = document.getElementById("library-admin-status");
+
+      if (!gridEl || !emptyEl || !openBtn || !addBtn || !modal || !closeBtn || !cancelBtn || !fetchBtn || !saveBtn) {
+        return;
+      }
+      if (!linkInput || !titleInput || !coverInput || !reasonInput || !coverPreview || !statusEl) return;
+
+      const contentUrl = (key, admin = false) =>
+        `${admin ? "/api/admin/content/" : "/api/content/"}${encodeURIComponent(key)}`;
+
+      const fetchJson = async (url, init = {}) => {
+        const response = await fetch(url, { cache: "no-store", ...init });
+        let payload = null;
+        try {
+          payload = await response.json();
+        } catch {
+          payload = null;
+        }
+        return { response, payload };
+      };
+
+      const normalizeUrl = (url) => String(url || "").trim();
+      const normalizeCover = (url) => normalizeUrl(url).replace(/^http:\/\//i, "https://");
+
+      const showStatus = (msg, isErr = false) => {
+        statusEl.textContent = msg || "";
+        statusEl.classList.toggle("err", !!isErr);
+      };
+
+      const parseVideoId = (url) => {
+        const raw = normalizeUrl(url);
+        if (!raw) return null;
+
+        const bv = raw.match(/BV[0-9A-Za-z]{10}/i);
+        if (bv) return { bvid: bv[0] };
+
+        const av = raw.match(/(?:\/av|aid=)(\d+)/i);
+        if (av) return { aid: av[1] };
+
+        return null;
+      };
+
+      const fetchViaJsonp = (url, timeoutMs = 12000) =>
+        new Promise((resolve, reject) => {
+          const callbackName = `__bili_jsonp_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+          const joiner = url.includes("?") ? "&" : "?";
+          const script = document.createElement("script");
+          let timer = null;
+
+          const cleanup = () => {
+            if (timer) clearTimeout(timer);
+            delete window[callbackName];
+            script.remove();
+          };
+
+          window[callbackName] = (payload) => {
+            cleanup();
+            resolve(payload);
+          };
+
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("JSONP network error"));
+          };
+
+          timer = setTimeout(() => {
+            cleanup();
+            reject(new Error("JSONP timeout"));
+          }, timeoutMs);
+
+          script.src = `${url}${joiner}jsonp=jsonp&callback=${callbackName}`;
+          document.head.appendChild(script);
+        });
+
+      const loadItems = async () => {
+        try {
+          const { response, payload } = await fetchJson(contentUrl(STORAGE_KEY));
+          if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+            itemsState = [];
+            return;
+          }
+          itemsState = payload.data;
+        } catch {
+          itemsState = [];
+        }
+      };
+
+      const loadAdminState = async () => {
+        try {
+          const { response, payload } = await fetchJson("/api/admin/session");
+          if (!response.ok) {
+            isAdmin = false;
+          } else {
+            isAdmin = !!payload?.authenticated;
+          }
+        } catch {
+          isAdmin = false;
+        }
+
+        openBtn.hidden = !isAdmin;
+        addBtn.hidden = !isAdmin || !editMode;
+      };
+
+      const writeItems = async (rows) => {
+        itemsState = Array.isArray(rows) ? rows : [];
+        if (!isAdmin) return true;
+
+        const { response, payload } = await fetchJson(contentUrl(STORAGE_KEY, true), {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ data: itemsState }),
+        });
+
+        if (response.status === 401) {
+          isAdmin = false;
+          editMode = false;
+          openBtn.hidden = true;
+          addBtn.hidden = true;
+          showStatus("管理员会话已失效，请先去 /admin 登录。", true);
+          return false;
+        }
+
+        if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+          showStatus(`保存失败：${payload?.message || response.statusText}`, true);
+          return false;
+        }
+
+        itemsState = payload.data;
+        return true;
+      };
+
+      const createCard = (item) => {
+        const a = document.createElement("a");
+        a.className = "rec rec-custom";
+        a.href = item.url;
+        a.target = "_blank";
+        a.rel = "noreferrer";
+        a.dataset.recKey = item.id;
+
+        const t = document.createElement("div");
+        t.className = "rt";
+        t.textContent = item.title;
+        a.appendChild(t);
+
+        if (item.cover) {
+          const img = document.createElement("img");
+          img.className = "cover";
+          img.src = item.cover;
+          img.alt = "";
+          img.loading = "lazy";
+          img.referrerPolicy = "no-referrer";
+          a.appendChild(img);
+        }
+
+        if (item.reason) {
+          const d = document.createElement("div");
+          d.className = "rd";
+          d.textContent = item.reason;
+          a.appendChild(d);
+        }
+
+        return a;
+      };
+
+      const setCardLinksEnabled = (enabled) => {
+        document.querySelectorAll("a.rec-custom").forEach((card) => {
+          const anchor = card;
+          if (!(anchor instanceof HTMLAnchorElement)) return;
+
+          if (enabled) {
+            const saved = anchor.dataset.hrefSaved;
+            if (saved && !anchor.hasAttribute("href")) anchor.setAttribute("href", saved);
+            anchor.removeAttribute("aria-disabled");
+            return;
+          }
+
+          if (anchor.hasAttribute("href")) {
+            anchor.dataset.hrefSaved = anchor.getAttribute("href") || "";
+          }
+          anchor.removeAttribute("href");
+          anchor.setAttribute("aria-disabled", "true");
+        });
+      };
+
+      const updateEmptyState = () => {
+        const hasItems = gridEl.querySelectorAll(".rec-custom").length > 0;
+        emptyEl.hidden = hasItems;
+      };
+
+      const removeDeleteButtons = () => {
+        document.querySelectorAll(".rec-delete").forEach((x) => x.remove());
+      };
+
+      const deleteCard = async (card) => {
+        const recKey = card.getAttribute("data-rec-key") || "";
+        if (!recKey) return;
+        const title = card.querySelector(".rt")?.textContent?.trim() || "该条目";
+        if (!confirm(`确定删除「${title}」吗？`)) return;
+
+        const next = itemsState.filter((x) => x.id !== recKey);
+        const ok = await writeItems(next);
+        if (!ok) return;
+        renderCards();
+      };
+
+      const renderDeleteButtons = () => {
+        removeDeleteButtons();
+        if (!isAdmin || !editMode) return;
+
+        document.querySelectorAll(".rec-custom").forEach((card) => {
+          const del = document.createElement("button");
+          del.type = "button";
+          del.className = "rec-delete";
+          del.textContent = "×";
+          del.setAttribute("aria-label", "删除条目");
+          del.addEventListener("click", async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await deleteCard(card);
+          });
+          card.appendChild(del);
+        });
+      };
+
+      const renderCards = () => {
+        gridEl.innerHTML = "";
+        const rows = [...itemsState].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+        rows.forEach((item) => gridEl.appendChild(createCard(item)));
+        setCardLinksEnabled(!editMode);
+        renderDeleteButtons();
+        updateEmptyState();
+      };
+
+      const resetForm = () => {
+        linkInput.value = "";
+        titleInput.value = "";
+        coverInput.value = "";
+        reasonInput.value = "";
+        coverPreview.hidden = true;
+        coverPreview.removeAttribute("src");
+        showStatus("");
+      };
+
+      const openModal = () => {
+        if (!isAdmin || !editMode) return;
+        modal.hidden = false;
+      };
+
+      const closeModal = () => {
+        modal.hidden = true;
+        resetForm();
+      };
+
+      const syncCoverPreview = () => {
+        const src = normalizeCover(coverInput.value);
+        if (!src) {
+          coverPreview.hidden = true;
+          coverPreview.removeAttribute("src");
+          return;
+        }
+        coverPreview.src = src;
+        coverPreview.hidden = false;
+      };
+
+      const fetchMeta = async () => {
+        if (!isAdmin) return;
+        const link = normalizeUrl(linkInput.value);
+        const id = parseVideoId(link);
+
+        if (!id) {
+          showStatus("链接里没识别到 BV / av 号。", true);
+          return;
+        }
+
+        showStatus("正在抓取标题和封面...");
+
+        const applyMetaFromPayload = (json) => {
+          if (!json || json.code !== 0 || !json.data) {
+            throw new Error(json?.message || "B 站接口返回异常");
+          }
+          titleInput.value = json.data.title || "";
+          coverInput.value = normalizeCover(json.data.pic || "");
+          syncCoverPreview();
+        };
+
+        try {
+          const qs = new URLSearchParams(id).toString();
+          const apiUrl = `${VIEW_API}?${qs}`;
+
+          try {
+            const resp = await fetch(apiUrl);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const json = await resp.json();
+            applyMetaFromPayload(json);
+            showStatus("已自动填好标题和封面。");
+            return;
+          } catch {
+            const jsonpPayload = await fetchViaJsonp(apiUrl);
+            applyMetaFromPayload(jsonpPayload);
+            showStatus("已通过兼容模式抓取标题和封面。");
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          showStatus(`抓取失败：${msg}。可手动填写。`, true);
+        }
+      };
+
+      const saveEntry = async () => {
+        if (!isAdmin) return;
+        const item = {
+          id: (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`).toString(),
+          url: normalizeUrl(linkInput.value),
+          title: normalizeUrl(titleInput.value),
+          cover: normalizeCover(coverInput.value),
+          reason: normalizeUrl(reasonInput.value),
+          createdAt: new Date().toISOString(),
+        };
+
+        if (!item.url) {
+          showStatus("请先输入视频链接。", true);
+          return;
+        }
+        if (!item.title) {
+          showStatus("请先抓取或填写标题。", true);
+          return;
+        }
+
+        const next = [item, ...itemsState].slice(0, 180);
+        const ok = await writeItems(next);
+        if (!ok) return;
+
+        renderCards();
+        closeModal();
+      };
+
+      const setEditMode = (next) => {
+        if (!isAdmin) return;
+        editMode = next;
+        openBtn.textContent = editMode ? "完成" : "编辑";
+        addBtn.hidden = !editMode;
+        if (!editMode) closeModal();
+        renderCards();
+      };
+
+      openBtn.addEventListener("click", () => setEditMode(!editMode));
+      addBtn.addEventListener("click", () => openModal());
+      closeBtn.addEventListener("click", closeModal);
+      cancelBtn.addEventListener("click", closeModal);
+      fetchBtn.addEventListener("click", fetchMeta);
+      saveBtn.addEventListener("click", saveEntry);
+      coverInput.addEventListener("input", syncCoverPreview);
+      linkInput.addEventListener("change", () => {
+        if (normalizeUrl(linkInput.value)) fetchMeta();
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !modal.hidden) closeModal();
+      });
+
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) closeModal();
+      });
+
+      (async () => {
+        await Promise.all([loadItems(), loadAdminState()]);
+        renderCards();
+      })();
+    })();
+  </script>
 
   <style lang="scss">
   @use "../styles/mixins" as m;
-  .rec{
+
+  .admin-bar{
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .admin-btn{
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 999px;
+    background: rgba(20,20,30,.5);
+    color: rgba(255,255,255,.9);
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  }
+  .admin-btn[hidden]{
+    display: none !important;
+  }
+  .admin-btn:hover{
+    border-color: rgba(255,255,255,.32);
+    background: rgba(40,40,60,.64);
+  }
+  .admin-btn.primary{
+    background: rgba(74, 206, 148, .2);
+    border-color: rgba(74, 206, 148, .5);
+    color: rgba(224,255,241,.98);
+  }
+
+  :global(a.rec-custom){
     @include m.glass;
     @include m.hover-float;
     border-radius: var(--r-lg);
-    padding: 14px 14px;
+    padding: 14px;
+    display: block;
+    position: relative;
+  }
+  :global(.rec-custom .rt){
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  :global(.rec-custom .cover){
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.14);
+    margin: 8px 0 10px;
     display: block;
   }
-  .rt{ font-weight: 700; margin-bottom: 6px; }
-  .rd{ color: rgba(255,255,255,.65); font-size: 13px; min-height: 34px; }
-  .meta{ display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 8px; }
-  .pill{
-    padding: 4px 8px;
+  :global(.rec-custom .rd){
+    color: rgba(255,255,255,.65);
+    font-size: 13px;
+  }
+
+  :global(.rec-delete){
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
     border-radius: 999px;
+    border: 1px solid rgba(255,120,120,.45);
+    background: rgba(28,10,14,.72);
+    color: rgba(255,214,214,.95);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    transition: transform var(--dur) var(--ease), border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  }
+  :global(.rec-delete:hover){
+    transform: scale(1.04);
+    border-color: rgba(255,142,142,.75);
+    background: rgba(60,14,22,.86);
+  }
+
+  .admin-modal{
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    background: rgba(0,0,0,.56);
+    padding: 16px;
+  }
+  .admin-modal[hidden]{
+    display: none !important;
+  }
+  .admin-panel{
+    width: min(760px, 100%);
+    max-height: min(86vh, 900px);
+    overflow: auto;
+    border-radius: 20px;
+    padding: 16px;
+    @include m.glass;
+  }
+  .admin-head{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .admin-head h3{
+    margin: 0;
+    font-size: 18px;
+  }
+  .admin-close{
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(0,0,0,.3);
+    color: rgba(255,255,255,.9);
+    cursor: pointer;
+  }
+  .admin-grid{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .field{
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field.full{
+    grid-column: 1 / -1;
+  }
+  .field span{
     font-size: 12px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.18);
     color: rgba(255,255,255,.78);
   }
-  .pill.faint{ color: rgba(255,255,255,.62); }
+  .field input,
+  .field textarea{
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(0,0,0,.34);
+    color: rgba(255,255,255,.92);
+    padding: 10px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .field textarea{
+    resize: vertical;
+    min-height: 76px;
+  }
+  .field.actions{
+    justify-content: flex-end;
+  }
+  .cover-preview{
+    width: 100%;
+    max-width: 320px;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.2);
+  }
+  .admin-status{
+    min-height: 20px;
+    margin: 12px 0 0;
+    color: rgba(255,255,255,.86);
+    font-size: 13px;
+  }
+  .admin-status.err{
+    color: rgb(255 171 171);
+  }
+  .admin-actions{
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 720px){
+    .admin-panel{
+      padding: 14px;
+      border-radius: 16px;
+    }
+    .admin-actions{
+      flex-direction: column;
+    }
+    .admin-actions .admin-btn{
+      width: 100%;
+    }
+  }
   </style>
 </BaseLayout>

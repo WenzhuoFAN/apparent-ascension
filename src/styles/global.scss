@@ -129,3 +129,19 @@ hr.sep{
     margin-right: auto;
   }
 }
+
+@media (max-width: 720px){
+  main{
+    padding: 14px 0 24px;
+  }
+  .page{
+    padding: 14px;
+    border-radius: 16px;
+  }
+  .h1{
+    margin-bottom: 8px;
+  }
+  .h2{
+    margin-bottom: 10px;
+  }
+}

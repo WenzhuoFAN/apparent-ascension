@@ -1,0 +1,3 @@
+2026-03-06T17:27:19.892Z [live] database login denied (code=28000).
+2026-03-06T17:27:19.894Z [live] using host=c683rl2u9g20vq.cluster-czrs8kj4isg7.us-east-1.rds.amazonaws.com:5432 db=d2goamho01cbr4 user=u1gt10mvlc8rr3
+2026-03-06T17:27:19.895Z [live] fix: replace DATABASE_URL with a currently valid credential from your DB provider.

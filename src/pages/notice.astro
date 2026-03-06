@@ -1,0 +1,463 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import NavBar from "../components/NavBar.astro";
+import Section from "../components/Section.astro";
+---
+<BaseLayout title="公告｜闪耀舞台" description="站内公告与更新记录">
+  <NavBar slot="nav" active="notice" />
+
+  <section class="admin-wrap" id="notice-admin" hidden>
+    <div class="admin-head">
+      <div class="admin-user">管理员：<strong id="admin-username">-</strong></div>
+      <button type="button" class="btn primary" id="new-notice-btn">新建公告</button>
+    </div>
+
+    <div class="editor" id="notice-editor" hidden>
+      <label class="field">
+        <span>标题</span>
+        <input id="notice-title" type="text" maxlength="120" placeholder="可选" />
+      </label>
+      <label class="field">
+        <span>正文</span>
+        <textarea id="notice-text" rows="6" maxlength="10000" placeholder="请输入公告内容"></textarea>
+      </label>
+      <label class="check">
+        <input id="notice-published" type="checkbox" />
+        <span>立即发布</span>
+      </label>
+      <div class="editor-actions">
+        <button type="button" class="btn primary" id="save-notice-btn">保存</button>
+        <button type="button" class="btn" id="cancel-notice-btn">取消</button>
+      </div>
+      <p class="status" id="notice-status"></p>
+    </div>
+  </section>
+
+  <Section title="最新公告">
+    <div class="notice-list" id="notice-list"></div>
+    <p class="p" id="notice-empty">暂时没有公告。</p>
+  </Section>
+
+  <script is:inline>
+    (() => {
+      const CONTENT_KEY = "notice.announcements.v1";
+      const contentUrl = (admin = false) =>
+        `${admin ? "/api/admin/content/" : "/api/content/"}${encodeURIComponent(CONTENT_KEY)}`;
+
+      const adminWrap = document.getElementById("notice-admin");
+      const adminUser = document.getElementById("admin-username");
+      const newBtn = document.getElementById("new-notice-btn");
+      const editor = document.getElementById("notice-editor");
+      const titleInput = document.getElementById("notice-title");
+      const textInput = document.getElementById("notice-text");
+      const publishedInput = document.getElementById("notice-published");
+      const saveBtn = document.getElementById("save-notice-btn");
+      const cancelBtn = document.getElementById("cancel-notice-btn");
+      const statusEl = document.getElementById("notice-status");
+      const list = document.getElementById("notice-list");
+      const empty = document.getElementById("notice-empty");
+
+      if (
+        !adminWrap ||
+        !adminUser ||
+        !newBtn ||
+        !editor ||
+        !titleInput ||
+        !textInput ||
+        !publishedInput ||
+        !saveBtn ||
+        !cancelBtn ||
+        !statusEl ||
+        !list ||
+        !empty
+      ) {
+        return;
+      }
+
+      let isAdmin = false;
+      let username = "";
+      let editingId = "";
+      let notices = [];
+
+      const sortNotices = (rows) =>
+        [...rows].sort((a, b) => {
+          const aKey = String(a.publishedAt || a.updatedAt || "");
+          const bKey = String(b.publishedAt || b.updatedAt || "");
+          return bKey.localeCompare(aKey);
+        });
+
+      const displayRows = () => (isAdmin ? notices : notices.filter((x) => x.published));
+
+      const setStatus = (text, isError = false) => {
+        statusEl.textContent = text || "";
+        statusEl.classList.toggle("err", !!isError);
+      };
+
+      const fmtTime = (iso) => {
+        if (!iso) return "--";
+        const dt = new Date(iso);
+        if (Number.isNaN(dt.getTime())) return "--";
+        const y = dt.getFullYear();
+        const m = String(dt.getMonth() + 1).padStart(2, "0");
+        const d = String(dt.getDate()).padStart(2, "0");
+        const hh = String(dt.getHours()).padStart(2, "0");
+        const mm = String(dt.getMinutes()).padStart(2, "0");
+        return `${y}-${m}-${d} ${hh}:${mm}`;
+      };
+
+      const fetchJson = async (url, init = {}) => {
+        const response = await fetch(url, { cache: "no-store", ...init });
+        let payload = null;
+        try {
+          payload = await response.json();
+        } catch {
+          payload = null;
+        }
+        return { response, payload };
+      };
+
+      const closeEditor = () => {
+        editingId = "";
+        editor.hidden = true;
+        titleInput.value = "";
+        textInput.value = "";
+        publishedInput.checked = true;
+        setStatus("");
+      };
+
+      const openEditor = (row = null) => {
+        editingId = row?.id || "";
+        editor.hidden = false;
+        titleInput.value = String(row?.title || "");
+        textInput.value = String(row?.text || "");
+        publishedInput.checked = row ? !!row.published : true;
+        setStatus("");
+        textInput.focus();
+      };
+
+      const renderList = () => {
+        const rows = displayRows();
+        list.innerHTML = "";
+        empty.hidden = rows.length > 0;
+
+        rows.forEach((row) => {
+          const item = document.createElement("article");
+          item.className = "notice-item";
+          item.setAttribute("data-id", row.id);
+
+          const head = document.createElement("div");
+          head.className = "notice-head";
+
+          const title = document.createElement("h3");
+          title.className = "notice-title";
+          title.textContent = row.title || "未命名公告";
+
+          const meta = document.createElement("div");
+          meta.className = "notice-meta";
+          meta.textContent = row.published
+            ? `已发布 · ${fmtTime(row.publishedAt || row.updatedAt)}`
+            : `草稿 · ${fmtTime(row.updatedAt)}`;
+
+          head.append(title, meta);
+
+          const body = document.createElement("div");
+          body.className = "notice-body";
+          body.textContent = String(row.text || "").replace(/\r\n/g, "\n");
+          body.style.whiteSpace = "pre-wrap";
+          body.style.wordBreak = "break-word";
+
+          item.append(head, body);
+
+          if (isAdmin) {
+            const actions = document.createElement("div");
+            actions.className = "notice-actions";
+            actions.innerHTML = `
+              <button type="button" class="btn" data-action="edit">编辑</button>
+              <button type="button" class="btn" data-action="toggle">${row.published ? "下线" : "发布"}</button>
+              <button type="button" class="btn danger" data-action="delete">删除</button>
+            `;
+            item.append(actions);
+          }
+
+          list.appendChild(item);
+        });
+      };
+
+      const persistNotices = async (nextRows) => {
+        if (!isAdmin) return false;
+
+        const { response, payload } = await fetchJson(contentUrl(true), {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ data: sortNotices(nextRows) }),
+        });
+
+        if (response.status === 401) {
+          isAdmin = false;
+          adminWrap.hidden = true;
+          setStatus("管理员会话已失效，请重新登录 /admin。", true);
+          return false;
+        }
+
+        if (!response.ok || !payload?.ok || !Array.isArray(payload?.data)) {
+          setStatus(`保存失败：${payload?.message || response.statusText}`, true);
+          return false;
+        }
+
+        notices = sortNotices(payload.data);
+        renderList();
+        return true;
+      };
+
+      const saveNotice = async () => {
+        const title = String(titleInput.value || "").trim();
+        const text = String(textInput.value || "").replace(/\r\n/g, "\n").trim();
+        const published = !!publishedInput.checked;
+        if (!text) {
+          setStatus("正文不能为空。", true);
+          return;
+        }
+
+        const now = new Date().toISOString();
+        const next = [...notices];
+
+        if (editingId) {
+          const idx = next.findIndex((x) => x.id === editingId);
+          if (idx < 0) {
+            setStatus("未找到要编辑的公告。", true);
+            return;
+          }
+
+          const prev = next[idx];
+          next[idx] = {
+            ...prev,
+            title: title || undefined,
+            text,
+            published,
+            updatedAt: now,
+            publishedAt: published ? prev.publishedAt || now : undefined,
+          };
+        } else {
+          next.unshift({
+            id: `notice-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            title: title || undefined,
+            text,
+            published,
+            createdAt: now,
+            updatedAt: now,
+            publishedAt: published ? now : undefined,
+          });
+        }
+
+        const ok = await persistNotices(next);
+        if (!ok) return;
+        closeEditor();
+      };
+
+      const togglePublished = async (id) => {
+        const next = notices.map((row) => {
+          if (row.id !== id) return row;
+          const willPublish = !row.published;
+          return {
+            ...row,
+            published: willPublish,
+            updatedAt: new Date().toISOString(),
+            publishedAt: willPublish ? row.publishedAt || new Date().toISOString() : undefined,
+          };
+        });
+        await persistNotices(next);
+      };
+
+      const deleteNotice = async (id) => {
+        if (!confirm("确定删除这条公告吗？")) return;
+        const next = notices.filter((x) => x.id !== id);
+        await persistNotices(next);
+      };
+
+      const loadSession = async () => {
+        try {
+          const { response, payload } = await fetchJson("/api/admin/session");
+          if (!response.ok || !payload) return;
+          isAdmin = !!payload.authenticated;
+          username = String(payload.username || "");
+        } catch {
+          isAdmin = false;
+          username = "";
+        }
+
+        adminWrap.hidden = !isAdmin;
+        adminUser.textContent = isAdmin ? username || "-" : "-";
+      };
+
+      const loadNotices = async () => {
+        const { response, payload } = await fetchJson(contentUrl(isAdmin));
+        if (!response.ok || !payload?.ok || !Array.isArray(payload?.data)) {
+          notices = [];
+          renderList();
+          return;
+        }
+        notices = sortNotices(payload.data);
+        renderList();
+      };
+
+      newBtn.addEventListener("click", () => openEditor());
+      saveBtn.addEventListener("click", saveNotice);
+      cancelBtn.addEventListener("click", closeEditor);
+
+      list.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement) || !isAdmin) return;
+        const action = target.getAttribute("data-action");
+        if (!action) return;
+
+        const card = target.closest("[data-id]");
+        const id = card?.getAttribute("data-id");
+        if (!id) return;
+
+        if (action === "edit") {
+          const row = notices.find((x) => x.id === id);
+          if (row) openEditor(row);
+          return;
+        }
+        if (action === "toggle") {
+          togglePublished(id);
+          return;
+        }
+        if (action === "delete") {
+          deleteNotice(id);
+        }
+      });
+
+      (async () => {
+        await loadSession();
+        await loadNotices();
+      })();
+    })();
+  </script>
+
+  <style lang="scss">
+    @use "../styles/mixins" as m;
+
+    .admin-wrap {
+      @include m.glass;
+      border-radius: var(--r-lg);
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+    .admin-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .admin-user {
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 13px;
+    }
+    .editor {
+      margin-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 12px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .field span {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.74);
+    }
+    .field input,
+    .field textarea {
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(0, 0, 0, 0.3);
+      color: rgba(255, 255, 255, 0.92);
+      padding: 10px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .check {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(255, 255, 255, 0.8);
+      margin: 2px 0 8px;
+      font-size: 13px;
+    }
+    .editor-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .status {
+      min-height: 18px;
+      margin: 8px 0 0;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.72);
+    }
+    .status.err {
+      color: #f3a3a3;
+    }
+
+    .notice-list {
+      display: grid;
+      gap: 10px;
+    }
+    .notice-item {
+      @include m.glass;
+      border-radius: var(--r-lg);
+      padding: 12px;
+    }
+    .notice-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .notice-title {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 800;
+    }
+    .notice-meta {
+      color: rgba(255, 255, 255, 0.66);
+      font-size: 12px;
+    }
+    .notice-body {
+      margin-top: 8px;
+      white-space: pre-wrap;
+      color: rgba(255, 255, 255, 0.86);
+      line-height: 1.65;
+    }
+    .notice-actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(20, 20, 30, 0.5);
+      color: rgba(255, 255, 255, 0.9);
+      padding: 7px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn.primary {
+      background: rgba(74, 206, 148, 0.18);
+      border-color: rgba(74, 206, 148, 0.5);
+      color: rgba(224, 255, 241, 0.98);
+    }
+    .btn.danger {
+      border-color: rgba(255, 111, 111, 0.35);
+      color: rgba(255, 190, 190, 0.95);
+    }
+  </style>
+</BaseLayout>

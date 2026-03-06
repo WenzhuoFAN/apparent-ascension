@@ -1,0 +1,84 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import NavBar from "../components/NavBar.astro";
+
+Astro.response.status = 404;
+const missingPath = Astro.url.pathname || "/";
+---
+<BaseLayout title="404｜页面未找到" description="你访问的页面不存在或链接已失效。">
+  <NavBar slot="nav" />
+
+  <section class="not-found">
+    <div class="code">404</div>
+    <h1 class="title">页面未找到</h1>
+    <p class="desc">链接可能已失效、被移动，或地址输入有误。</p>
+    <p class="path">路径：{missingPath}</p>
+
+    <div class="actions">
+      <a class="btn primary" href="/">返回首页</a>
+      <a class="btn" href="/start">去速成指南</a>
+      <a class="btn" href="/library">去精选内容</a>
+    </div>
+  </section>
+
+  <style lang="scss">
+    @use "../styles/mixins" as m;
+
+    .not-found {
+      @include m.glass;
+      border-radius: var(--r-lg);
+      padding: clamp(20px, 4vw, 36px);
+      text-align: center;
+      display: grid;
+      gap: 10px;
+    }
+    .code {
+      font-size: clamp(56px, 10vw, 100px);
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      color: rgba(255, 255, 255, 0.94);
+    }
+    .title {
+      margin: 0;
+      font-size: clamp(26px, 5vw, 36px);
+    }
+    .desc {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.76);
+    }
+    .path {
+      margin: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.58);
+      word-break: break-all;
+    }
+    .actions {
+      margin-top: 8px;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      background: rgba(20, 20, 30, 0.5);
+      color: rgba(255, 255, 255, 0.9);
+      padding: 8px 14px;
+      font-size: 13px;
+      text-decoration: none;
+      transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+    }
+    .btn:hover {
+      border-color: rgba(255, 255, 255, 0.32);
+      background: rgba(40, 40, 60, 0.64);
+    }
+    .btn.primary {
+      background: rgba(74, 206, 148, 0.2);
+      border-color: rgba(74, 206, 148, 0.5);
+      color: rgba(224, 255, 241, 0.98);
+    }
+  </style>
+</BaseLayout>

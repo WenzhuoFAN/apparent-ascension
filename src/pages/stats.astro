@@ -3,17 +3,10 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import NavBar from "../components/NavBar.astro";
 import Section from "../components/Section.astro";
 
-import { getCollection } from "astro:content";
 import { formatDateCN } from "../utils/date";
+import { getFollowerMetrics } from "../lib/metrics-store";
 
-const metrics = await getCollection("metrics");
-const rows = metrics
-  .flatMap((m) => m.data)
-  .sort((a, b) => {
-    const byDate = a.date.localeCompare(b.date);
-    if (byDate !== 0) return byDate;
-    return (a.capturedAt ?? "").localeCompare(b.capturedAt ?? "");
-  });
+const rows = await getFollowerMetrics();
 
 type StatPoint = { x: number; y: number; date: string };
 
@@ -71,14 +64,13 @@ function memberName(member: "fiona" | "gladys" | "both") {
 }
 
 function dateToX(dateStr: string) {
-  // YYYY-MM-DD -> day index
   const [y, m, d] = dateStr.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
   return Math.floor(dt.getTime() / 86400000);
 }
 
 const gladysPts = byMember("gladys").map((r) => ({ x: dateToX(r.date), y: r.followers, date: r.date }));
-const fionaPtsWithDate = byMember("fiona").map((r) => ({ x: dateToX(r.date), y: r.followers, date: r.date }));
+const fionaPts = byMember("fiona").map((r) => ({ x: dateToX(r.date), y: r.followers, date: r.date }));
 
 const dailyByMember = new Map<"fiona" | "gladys" | "both", Map<string, number>>();
 for (const row of rows) {
@@ -117,16 +109,25 @@ function deltaClass(delta: number | null) {
   return delta > 0 ? "up" : "down";
 }
 ---
-<BaseLayout title="粉丝数据｜闪耀舞台" description="粉丝数量与成长记录快照">
+<BaseLayout title="粉丝数据｜闪耀舞台" description="粉丝数量与增长记录快照">
   <NavBar slot="nav" active="stats" />
 
-  <Section title="粉丝数趋势">
-    <div class="grid cols-2">
-      <div class="panel">
+  <div class="head-row">
+    <h1 class="h1">粉丝数趋势</h1>
+    <div class="member-switch" data-member-switch>
+      <button type="button" class="chip active" data-member="all">全部</button>
+      <button type="button" class="chip" data-member="fiona">心宜</button>
+      <button type="button" class="chip" data-member="gladys">思诺</button>
+    </div>
+  </div>
+
+  <Section title="粉丝趋势">
+    <div class="grid cols-2 chart-grid" data-chart-grid>
+      <div class="panel" data-member-card="fiona">
         <div class="pt">心宜</div>
-        <div class="svg" set:html={spark(fionaPtsWithDate)} />
+        <div class="svg" set:html={spark(fionaPts)} />
       </div>
-      <div class="panel">
+      <div class="panel" data-member-card="gladys">
         <div class="pt">思诺</div>
         <div class="svg" set:html={spark(gladysPts)} />
       </div>
@@ -142,7 +143,7 @@ function deltaClass(delta: number | null) {
         <div>较昨日</div>
       </div>
       {rowsWithDelta.slice().reverse().map((r) => (
-        <div class="tr">
+        <div class="tr" data-member-row={r.member}>
           <div class="muted">{formatDateCN(r.date)}</div>
           <div><span class="pill">{memberName(r.member)}</span></div>
           <div class="num">{r.followers.toLocaleString()}</div>
@@ -151,16 +152,97 @@ function deltaClass(delta: number | null) {
       ))}
     </div>
 
-    {!rows.length && <p class="p">还没有 metrics 数据。去 src/content/metrics/all.json 填写，或运行 npm run fetch:metrics。</p>}
+    {!rows.length && <p class="p">还没有 metrics 数据。运行 `npm run fetch:metrics` 抓取并写入数据库。</p>}
   </div>
+
+  <script is:inline>
+    (() => {
+      const root = document.querySelector("[data-member-switch]");
+      if (!root) return;
+
+      const chartGrid = document.querySelector("[data-chart-grid]");
+      const cards = Array.from(document.querySelectorAll("[data-member-card]"));
+      const rows = Array.from(document.querySelectorAll("[data-member-row]"));
+      let selected = "all";
+
+      const matches = (member) => {
+        if (selected === "all") return true;
+        return member === selected || member === "both";
+      };
+
+      const apply = () => {
+        let visibleCards = 0;
+        cards.forEach((card) => {
+          const member = card.getAttribute("data-member-card") || "";
+          const visible = matches(member);
+          card.style.display = visible ? "" : "none";
+          if (visible) visibleCards += 1;
+        });
+        rows.forEach((row) => {
+          const member = row.getAttribute("data-member-row") || "";
+          row.style.display = matches(member) ? "" : "none";
+        });
+        if (chartGrid instanceof HTMLElement) {
+          chartGrid.classList.toggle("single", selected !== "all" && visibleCards === 1);
+        }
+      };
+
+      root.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) return;
+        const member = target.getAttribute("data-member");
+        if (!member) return;
+
+        selected = member;
+        root.querySelectorAll("[data-member]").forEach((btn) => {
+          btn.classList.toggle("active", btn.getAttribute("data-member") === selected);
+        });
+        apply();
+      });
+
+      apply();
+    })();
+  </script>
 
   <style lang="scss">
     @use "../styles/mixins" as m;
 
+    .head-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .member-switch {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(0, 0, 0, 0.22);
+      color: rgba(255, 255, 255, 0.78);
+      cursor: pointer;
+      font-size: 13px;
+      transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+    }
+    .chip:hover {
+      background: rgba(0, 0, 0, 0.33);
+    }
+    .chip.active {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.28);
+      color: rgba(255, 255, 255, 0.95);
+    }
+
     .panel {
       @include m.glass;
       border-radius: var(--r-lg);
-      padding: 12px 12px;
+      padding: 12px;
     }
     .pt {
       font-weight: 800;
@@ -168,6 +250,17 @@ function deltaClass(delta: number | null) {
     }
     .svg :global(svg) {
       display: block;
+      width: 100%;
+      height: 180px;
+    }
+    .chart-grid.single {
+      grid-template-columns: minmax(0, 1fr) !important;
+    }
+    .chart-grid.single .panel {
+      padding: 16px;
+    }
+    .chart-grid.single .svg :global(svg) {
+      height: 260px;
     }
 
     .table-wrap {
@@ -197,9 +290,7 @@ function deltaClass(delta: number | null) {
       color: rgba(255, 255, 255, 0.62);
       font-size: 13px;
     }
-    .num {
-      font-variant-numeric: tabular-nums;
-    }
+    .num,
     .delta {
       font-variant-numeric: tabular-nums;
     }
@@ -223,6 +314,9 @@ function deltaClass(delta: number | null) {
     }
 
     @media (max-width: 860px) {
+      .chart-grid.single .svg :global(svg) {
+        height: 220px;
+      }
       .tr {
         grid-template-columns: 1fr;
       }
