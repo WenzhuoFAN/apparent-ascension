@@ -3,14 +3,108 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import NavBar from "../components/NavBar.astro";
 import Hero from "../components/Hero.astro";
 import Section from "../components/Section.astro";
-import TagPills from "../components/TagPills.astro";
 
-import { getAllRecommendations } from "../lib/recommendations";
+import { LIVE_STATUS_BY_KEY, fetchLiveStatusByMid } from "../lib/bilibili-live";
+import { CONTENT_KEYS, getContentByKey } from "../lib/content-store";
 
-const { clips, fanworks } = await getAllRecommendations();
-const latestRecs = [...clips, ...fanworks]
-  .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+type ScheduleRoom = "fiona" | "gladys" | "both";
+type ScheduleEntry = {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  room: ScheduleRoom;
+  category?: string;
+  mode?: string;
+  tags?: string[];
+};
+
+type HomeLatestRecommendation = {
+  id: string;
+  url: string;
+  title: string;
+  cover?: string;
+  reason?: string;
+  createdAt?: string;
+};
+
+const latestRecs = [...((await getContentByKey(CONTENT_KEYS.homeLatest)) as HomeLatestRecommendation[])]
+  .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
   .slice(0, 6);
+
+const roomLabelMap = {
+  fiona: "心宜",
+  gladys: "思诺",
+  both: "双人",
+} satisfies Record<ScheduleRoom, string>;
+
+const roomCoverMap = {
+  fiona: "/images/FionaLive.jpg",
+  gladys: "/images/GladysLive.jpg",
+} satisfies Record<Exclude<ScheduleRoom, "both">, string>;
+
+const scheduleEntries = ((await getContentByKey(CONTENT_KEYS.schedule)) as ScheduleEntry[]).filter((entry) => {
+  if (!entry || typeof entry !== "object") return false;
+  if (typeof entry.title !== "string" || typeof entry.date !== "string" || typeof entry.time !== "string") return false;
+  return entry.room === "fiona" || entry.room === "gladys" || entry.room === "both";
+});
+
+const formatDateCN = (date: string) => {
+  const m = String(date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return date || "--";
+  return `${Number(m[1])}年${Number(m[2])}月${Number(m[3])}日`;
+};
+
+const getBeijingNowKey = () => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const pick = (type: string) => parts.find((part) => part.type === type)?.value || "";
+  return `${pick("year")}-${pick("month")}-${pick("day")}T${pick("hour")}:${pick("minute")}`;
+};
+
+const byDateTimeAsc = (a: ScheduleEntry, b: ScheduleEntry) =>
+  `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`);
+
+const nowKey = getBeijingNowKey();
+const pickNextEntryForMember = (member: Exclude<ScheduleRoom, "both">) =>
+  scheduleEntries
+    .filter((entry) => entry.room === member || entry.room === "both")
+    .filter((entry) => `${entry.date}T${entry.time}` >= nowKey)
+    .sort(byDateTimeAsc)[0] ?? null;
+
+const liveStatuses = Object.fromEntries(
+  await Promise.all(
+    (Object.keys(LIVE_STATUS_BY_KEY) as Array<Exclude<ScheduleRoom, "both">>).map(async (member) => [
+      member,
+      await fetchLiveStatusByMid(LIVE_STATUS_BY_KEY[member]),
+    ]),
+  ),
+) as Record<Exclude<ScheduleRoom, "both">, Awaited<ReturnType<typeof fetchLiveStatusByMid>>>;
+
+const nextStreams = [
+  {
+    member: "fiona" as const,
+    label: roomLabelMap.fiona,
+    cover: roomCoverMap.fiona,
+    entry: pickNextEntryForMember("fiona"),
+    href: liveStatuses.fiona?.liveUrl || `https://space.bilibili.com/${LIVE_STATUS_BY_KEY.fiona}`,
+  },
+  {
+    member: "gladys" as const,
+    label: roomLabelMap.gladys,
+    cover: roomCoverMap.gladys,
+    entry: pickNextEntryForMember("gladys"),
+    href: liveStatuses.gladys?.liveUrl || `https://space.bilibili.com/${LIVE_STATUS_BY_KEY.gladys}`,
+  },
+];
 ---
 
 <BaseLayout title="闪耀舞台" description="入坑导航、日程表、直播记录、精选与数据">
@@ -21,264 +115,848 @@ const latestRecs = [...clips, ...fanworks]
     tagline="给新粉一条最短入坑路径，信息入口：日程表、直播记录、粉丝数据、精选内容。"
   />
 
-  <Section title="本周日程" subtitle="按北京时间计算当前周（周一至周日）。">
-    <div id="home-schedule-list"></div>
-    <p class="p" id="home-schedule-empty" hidden>暂无已保存日程。</p>
-  </Section>
-
-  <Section title="最新推荐">
-    <div class="grid cols-3">
-      {latestRecs.map((r) => (
-        <a class="rec" href={r.url} target="_blank" rel="noreferrer" data-member={r.member} data-tags={r.tags.join(",")}>
-          <div class="rt">{r.title}</div>
-          <div class="rd">{r.reason ?? ""}</div>
-          <div class="meta">
-            <span class="pill">{r.member}</span>
-            <span class="pill faint">{r.kind}</span>
+  <Section title="下一场直播">
+    <div class="home-next-grid">
+      {nextStreams.map(({ member, label, cover, entry, href }) => (
+        <a class={`home-next-card ${member}`} href={href} target="_blank" rel="noreferrer" aria-label={`${label}下一场直播，前往直播间`}>
+          <div class="home-next-copy">
+            <div class="home-next-member">{label}</div>
+            {
+              entry ? (
+                <>
+                  <div class="home-next-title-row">
+                    <div class="home-next-title">{entry.title}</div>
+                    {entry.mode && <span class="home-next-pill">{entry.mode}</span>}
+                  </div>
+                  <div class="home-next-when">{formatDateCN(entry.date)} {entry.time}</div>
+                  <div class="home-next-meta">
+                    直播间：{roomLabelMap[entry.room]}
+                    {entry.category ? ` · ${entry.category}` : ""}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div class="home-next-empty">暂无安排</div>
+                  <div class="home-next-meta">有新日程时会在这里更新。</div>
+                </>
+              )
+            }
           </div>
-          <TagPills tags={r.tags.slice(0, 3)} />
+          <div class="home-next-cover-wrap">
+            <img class="home-next-cover" src={cover} alt={`${label}直播封面`} loading="lazy" width="180" height="112" />
+          </div>
         </a>
       ))}
     </div>
   </Section>
 
-  <script is:inline>
+  <Section title="最新推荐">
+    <div class="admin-bar">
+      <button class="admin-btn" id="open-home-rec-admin" type="button" hidden>编辑</button>
+    </div>
+
+    <div class="grid cols-3" id="home-rec-grid">
+      {latestRecs.map((r) => (
+        <a class="rec rec-custom" href={r.url} target="_blank" rel="noreferrer" data-rec-key={r.id}>
+          <div class="rt">{r.title}</div>
+          {r.cover && <img class="cover" src={r.cover} alt="" loading="lazy" referrerpolicy="no-referrer" />}
+          <div class="rd">{r.reason ?? ""}</div>
+        </a>
+      ))}
+    </div>
+    <p class="p" id="home-rec-empty" hidden={latestRecs.length > 0}>还没有“最新推荐”条目，登录管理员后点击“编辑”添加。</p>
+  </Section>
+
+  <div class="admin-modal" id="home-rec-modal" hidden>
+    <div class="admin-panel">
+      <div class="admin-head">
+        <h3>最新推荐编辑</h3>
+        <button class="admin-close" id="close-home-rec-admin" type="button" aria-label="关闭">×</button>
+      </div>
+
+      <div class="admin-grid">
+        <label class="field full">
+          <span>B 站视频链接</span>
+          <input id="home-rec-link-input" placeholder="https://www.bilibili.com/video/BV..." type="url" />
+        </label>
+
+        <div class="field actions">
+          <span>自动配置</span>
+          <button class="admin-btn" id="fetch-home-rec-meta" type="button">抓取标题和封面</button>
+        </div>
+
+        <label class="field full">
+          <span>标题</span>
+          <input id="home-rec-title-input" placeholder="自动抓取后可再手改" type="text" />
+        </label>
+
+        <label class="field full">
+          <span>封面链接</span>
+          <input id="home-rec-cover-input" placeholder="自动抓取后会填好" type="url" />
+        </label>
+
+        <div class="field full">
+          <span>封面预览</span>
+          <img class="cover-preview" id="home-rec-cover-preview" alt="" hidden />
+        </div>
+
+        <label class="field full">
+          <span>推荐说明</span>
+          <textarea id="home-rec-reason-input" rows="3" placeholder="比如：这条先看，信息密度高。"></textarea>
+        </label>
+      </div>
+
+      <p class="admin-status" id="home-rec-status"></p>
+
+      <div class="admin-actions">
+        <button class="admin-btn primary" id="save-home-rec-entry" type="button">保存到首页</button>
+        <button class="admin-btn" id="cancel-home-rec-entry" type="button">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script is:inline define:vars={{ storageKey: CONTENT_KEYS.homeLatest, initialRecs: latestRecs }}>
     (() => {
-      const contentKey = "schedule.manual.entries.v3";
-      const listEl = document.getElementById("home-schedule-list");
-      const emptyEl = document.getElementById("home-schedule-empty");
-      if (!listEl || !emptyEl) return;
+      const STORAGE_KEY = storageKey;
+      const VIEW_API = "https://api.bilibili.com/x/web-interface/view";
+      let isAdmin = false;
+      let editMode = false;
+      let itemsState = Array.isArray(initialRecs) ? [...initialRecs] : [];
 
-      const roomLabelMap = {
-        fiona: "心宜",
-        gladys: "思诺",
-      };
-      const roomCoverMap = {
-        fiona: "/images/FionaLive.jpg",
-        gladys: "/images/GladysLive.jpg",
-      };
+      const gridEl = document.getElementById("home-rec-grid");
+      const emptyEl = document.getElementById("home-rec-empty");
+      const openBtn = document.getElementById("open-home-rec-admin");
+      const modal = document.getElementById("home-rec-modal");
+      const closeBtn = document.getElementById("close-home-rec-admin");
+      const cancelBtn = document.getElementById("cancel-home-rec-entry");
+      const fetchBtn = document.getElementById("fetch-home-rec-meta");
+      const saveBtn = document.getElementById("save-home-rec-entry");
 
-      const formatDateCN = (date) => {
-        const m = String(date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (!m) return date || "--";
-        return `${Number(m[1])}年${Number(m[2])}月${Number(m[3])}日`;
-      };
+      const linkInput = document.getElementById("home-rec-link-input");
+      const titleInput = document.getElementById("home-rec-title-input");
+      const coverInput = document.getElementById("home-rec-cover-input");
+      const reasonInput = document.getElementById("home-rec-reason-input");
+      const coverPreview = document.getElementById("home-rec-cover-preview");
+      const statusEl = document.getElementById("home-rec-status");
 
-      const sortEntries = (entries) =>
-        [...entries].sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`));
+      if (!gridEl || !emptyEl || !openBtn || !modal || !closeBtn || !cancelBtn || !fetchBtn || !saveBtn) return;
+      if (!linkInput || !titleInput || !coverInput || !reasonInput || !coverPreview || !statusEl) return;
 
-      const DAY_MS = 24 * 60 * 60 * 1000;
-      const BJ_TZ = "Asia/Shanghai";
-      const weekdayMap = {
-        Sun: 0,
-        Mon: 1,
-        Tue: 2,
-        Wed: 3,
-        Thu: 4,
-        Fri: 5,
-        Sat: 6,
-      };
+      const contentUrl = (key, admin = false) =>
+        `${admin ? "/api/admin/content/" : "/api/content/"}${encodeURIComponent(key)}`;
 
-      const toUtcDayTs = (year, month, day) => Date.UTC(year, month - 1, day);
-
-      const getBeijingDateParts = (date = new Date()) => {
-        const parts = new Intl.DateTimeFormat("en-US", {
-          timeZone: BJ_TZ,
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          weekday: "short",
-        }).formatToParts(date);
-
-        const pick = (type) => parts.find((p) => p.type === type)?.value || "";
-        return {
-          year: Number(pick("year")),
-          month: Number(pick("month")),
-          day: Number(pick("day")),
-          weekday: pick("weekday"),
-        };
-      };
-
-      const getCurrentBeijingWeekRange = () => {
-        const today = getBeijingDateParts(new Date());
-        const weekDay = weekdayMap[today.weekday] ?? 0;
-        const mondayOffset = (weekDay + 6) % 7; // Mon=0 ... Sun=6
-        const todayTs = toUtcDayTs(today.year, today.month, today.day);
-        const weekStartTs = todayTs - mondayOffset * DAY_MS;
-        const weekEndTs = weekStartTs + 6 * DAY_MS;
-        return { weekStartTs, weekEndTs };
-      };
-
-      const parseEntryDateTs = (dateStr) => {
-        const m = String(dateStr || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (!m) return NaN;
-        return toUtcDayTs(Number(m[1]), Number(m[2]), Number(m[3]));
-      };
-
-      const pickCurrentWeek = (entries) => {
-        const { weekStartTs, weekEndTs } = getCurrentBeijingWeekRange();
-        return entries.filter((entry) => {
-          const dateTs = parseEntryDateTs(entry.date);
-          return Number.isFinite(dateTs) && dateTs >= weekStartTs && dateTs <= weekEndTs;
-        });
-      };
-
-      const createRow = (entry) => {
-        const row = document.createElement("a");
-        row.className = "schedule-row";
-        row.href = "/schedule";
-        row.setAttribute("aria-label", `${entry.title || "未命名日程"}，查看完整日程`);
-
-        const main = document.createElement("div");
-        main.className = "schedule-main";
-
-        const when = document.createElement("div");
-        when.className = "schedule-when";
-        when.textContent = `${formatDateCN(entry.date)} ${entry.time}`;
-
-        const title = document.createElement("div");
-        title.className = "schedule-title";
-        title.textContent = entry.title || "未命名日程";
-
-        const meta = document.createElement("div");
-        meta.className = "schedule-meta";
-        meta.textContent = `直播间：${roomLabelMap[entry.room] || entry.room || "--"}`;
-        main.append(when, title, meta);
-
-        const coverWrap = document.createElement("div");
-        coverWrap.className = "schedule-cover-wrap";
-        const cover = document.createElement("img");
-        cover.className = "schedule-cover";
-        cover.alt = "";
-        cover.loading = "lazy";
-        cover.src = roomCoverMap[entry.room] || roomCoverMap.fiona;
-        cover.onerror = () => {
-          coverWrap.hidden = true;
-        };
-        coverWrap.appendChild(cover);
-
-        row.append(main, coverWrap);
-        return row;
-      };
-
-      const render = (entries) => {
-        listEl.innerHTML = "";
-        if (!entries.length) {
-          emptyEl.hidden = false;
-          return;
-        }
-        emptyEl.hidden = true;
-        entries.forEach((entry) => listEl.appendChild(createRow(entry)));
-      };
-
-      const load = async () => {
+      const fetchJson = async (url, init = {}) => {
+        const response = await fetch(url, { cache: "no-store", ...init });
+        let payload = null;
         try {
-          const response = await fetch(`/api/content/${encodeURIComponent(contentKey)}`, { cache: "no-store" });
-          const json = await response.json();
-          if (!response.ok || !json?.ok || !Array.isArray(json.data)) {
-            render([]);
+          payload = await response.json();
+        } catch {
+          payload = null;
+        }
+        return { response, payload };
+      };
+
+      const normalizeUrl = (url) => String(url || "").trim();
+      const normalizeCover = (url) => normalizeUrl(url).replace(/^http:\/\//i, "https://");
+
+      const showStatus = (msg, isErr = false) => {
+        statusEl.textContent = msg || "";
+        statusEl.classList.toggle("err", !!isErr);
+      };
+
+      const parseVideoId = (url) => {
+        const raw = normalizeUrl(url);
+        if (!raw) return null;
+
+        const bv = raw.match(/BV[0-9A-Za-z]{10}/i);
+        if (bv) return { bvid: bv[0] };
+
+        const av = raw.match(/(?:\/av|aid=)(\d+)/i);
+        if (av) return { aid: av[1] };
+
+        return null;
+      };
+
+      const fetchViaJsonp = (url, timeoutMs = 12000) =>
+        new Promise((resolve, reject) => {
+          const callbackName = `__bili_jsonp_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
+          const joiner = url.includes("?") ? "&" : "?";
+          const script = document.createElement("script");
+          let timer = null;
+
+          const cleanup = () => {
+            if (timer) clearTimeout(timer);
+            delete window[callbackName];
+            script.remove();
+          };
+
+          window[callbackName] = (payload) => {
+            cleanup();
+            resolve(payload);
+          };
+
+          script.onerror = () => {
+            cleanup();
+            reject(new Error("JSONP network error"));
+          };
+
+          timer = setTimeout(() => {
+            cleanup();
+            reject(new Error("JSONP timeout"));
+          }, timeoutMs);
+
+          script.src = `${url}${joiner}jsonp=jsonp&callback=${callbackName}`;
+          document.head.appendChild(script);
+        });
+
+      const loadItems = async () => {
+        try {
+          const { response, payload } = await fetchJson(contentUrl(STORAGE_KEY));
+          if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+            itemsState = [];
+            return;
+          }
+          itemsState = payload.data;
+        } catch {
+          itemsState = [];
+        }
+      };
+
+      const loadAdminState = async () => {
+        try {
+          const { response, payload } = await fetchJson("/api/admin/session");
+          if (!response.ok) {
+            isAdmin = false;
+          } else {
+            isAdmin = !!payload?.authenticated;
+          }
+        } catch {
+          isAdmin = false;
+        }
+
+        openBtn.hidden = !isAdmin;
+      };
+
+      const writeItems = async (rows) => {
+        itemsState = Array.isArray(rows) ? rows : [];
+        if (!isAdmin) return true;
+
+        const { response, payload } = await fetchJson(contentUrl(STORAGE_KEY, true), {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ data: itemsState }),
+        });
+
+        if (response.status === 401) {
+          isAdmin = false;
+          editMode = false;
+          openBtn.hidden = true;
+          showStatus("管理员会话已失效，请先去 /admin 登录。", true);
+          renderCards();
+          return false;
+        }
+
+        if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+          showStatus(`保存失败：${payload?.message || response.statusText}`, true);
+          return false;
+        }
+
+        itemsState = payload.data;
+        return true;
+      };
+
+      const createCard = (item) => {
+        const a = document.createElement("a");
+        a.className = "rec rec-custom";
+        a.href = item.url;
+        a.target = "_blank";
+        a.rel = "noreferrer";
+        a.dataset.recKey = item.id;
+
+        const t = document.createElement("div");
+        t.className = "rt";
+        t.textContent = item.title;
+        a.appendChild(t);
+
+        if (item.cover) {
+          const img = document.createElement("img");
+          img.className = "cover";
+          img.src = item.cover;
+          img.alt = "";
+          img.loading = "lazy";
+          img.referrerPolicy = "no-referrer";
+          a.appendChild(img);
+        }
+
+        if (item.reason) {
+          const d = document.createElement("div");
+          d.className = "rd";
+          d.textContent = item.reason;
+          a.appendChild(d);
+        }
+
+        return a;
+      };
+
+      const setCardLinksEnabled = (enabled) => {
+        gridEl.querySelectorAll("a.rec-custom").forEach((card) => {
+          const anchor = card;
+          if (!(anchor instanceof HTMLAnchorElement)) return;
+
+          if (enabled) {
+            const saved = anchor.dataset.hrefSaved;
+            if (saved && !anchor.hasAttribute("href")) anchor.setAttribute("href", saved);
+            anchor.removeAttribute("aria-disabled");
             return;
           }
 
-          const normalized = json.data.filter((entry) => {
-            if (!entry || typeof entry !== "object") return false;
-            if (typeof entry.title !== "string") return false;
-            if (typeof entry.date !== "string") return false;
-            if (typeof entry.time !== "string") return false;
-            if (entry.room !== "fiona" && entry.room !== "gladys") return false;
-            return true;
-          });
+          if (anchor.hasAttribute("href")) {
+            anchor.dataset.hrefSaved = anchor.getAttribute("href") || "";
+          }
+          anchor.removeAttribute("href");
+          anchor.setAttribute("aria-disabled", "true");
+        });
+      };
 
-          render(sortEntries(pickCurrentWeek(normalized)));
-        } catch {
-          render([]);
+      const updateEmptyState = () => {
+        const hasItems = gridEl.querySelectorAll(".rec:not(.rec-add-slot):not([hidden])").length > 0;
+        emptyEl.hidden = hasItems;
+      };
+
+      const removeDeleteButtons = () => {
+        document.querySelectorAll(".rec-delete").forEach((x) => x.remove());
+      };
+
+      const deleteCard = async (card) => {
+        const recKey = card.getAttribute("data-rec-key") || "";
+        if (!recKey) return;
+        const title = card.querySelector(".rt")?.textContent?.trim() || "该条目";
+        if (!confirm(`确定删除「${title}」吗？`)) return;
+
+        const next = itemsState.filter((x) => x.id !== recKey);
+        const ok = await writeItems(next);
+        if (!ok) return;
+        renderCards();
+      };
+
+      const renderDeleteButtons = () => {
+        removeDeleteButtons();
+        if (!isAdmin || !editMode) return;
+
+        document.querySelectorAll(".rec-custom").forEach((card) => {
+          const del = document.createElement("button");
+          del.type = "button";
+          del.className = "rec-delete";
+          del.textContent = "×";
+          del.setAttribute("aria-label", "删除条目");
+          del.addEventListener("click", async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await deleteCard(card);
+          });
+          card.appendChild(del);
+        });
+      };
+
+      const renderAddSlots = () => {
+        document.querySelectorAll(".rec-add-slot").forEach((x) => x.remove());
+        if (!isAdmin || !editMode) return;
+
+        const visibleCount = gridEl.querySelectorAll(".rec:not(.rec-add-slot):not([hidden])").length;
+        const slots = Math.max(0, 6 - visibleCount);
+
+        for (let i = 0; i < slots; i += 1) {
+          const add = document.createElement("button");
+          add.type = "button";
+          add.className = "rec rec-add-slot";
+          add.innerHTML = '<span class="plus">+</span>';
+          add.addEventListener("click", () => openModal());
+          gridEl.appendChild(add);
         }
       };
 
-      load();
+      const renderCards = () => {
+        gridEl.innerHTML = "";
+        const rows = [...itemsState].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))).slice(0, 60);
+        rows.forEach((item) => gridEl.appendChild(createCard(item)));
+        setCardLinksEnabled(!editMode);
+        renderDeleteButtons();
+        renderAddSlots();
+        updateEmptyState();
+      };
+
+      const resetForm = () => {
+        linkInput.value = "";
+        titleInput.value = "";
+        coverInput.value = "";
+        reasonInput.value = "";
+        coverPreview.hidden = true;
+        coverPreview.removeAttribute("src");
+        showStatus("");
+      };
+
+      const openModal = () => {
+        if (!isAdmin || !editMode) return;
+        modal.hidden = false;
+      };
+
+      const closeModal = () => {
+        modal.hidden = true;
+        resetForm();
+      };
+
+      const syncCoverPreview = () => {
+        const src = normalizeCover(coverInput.value);
+        if (!src) {
+          coverPreview.hidden = true;
+          coverPreview.removeAttribute("src");
+          return;
+        }
+        coverPreview.src = src;
+        coverPreview.hidden = false;
+      };
+
+      const fetchMeta = async () => {
+        if (!isAdmin) return;
+        const link = normalizeUrl(linkInput.value);
+        const id = parseVideoId(link);
+
+        if (!id) {
+          showStatus("链接里没识别到 BV / av 号。", true);
+          return;
+        }
+
+        showStatus("正在抓取标题和封面...");
+
+        const applyMetaFromPayload = (json) => {
+          if (!json || json.code !== 0 || !json.data) {
+            throw new Error(json?.message || "B 站接口返回异常");
+          }
+          titleInput.value = json.data.title || "";
+          coverInput.value = normalizeCover(json.data.pic || "");
+          syncCoverPreview();
+        };
+
+        try {
+          const qs = new URLSearchParams(id).toString();
+          const apiUrl = `${VIEW_API}?${qs}`;
+
+          try {
+            const resp = await fetch(apiUrl);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const json = await resp.json();
+            applyMetaFromPayload(json);
+            showStatus("已自动填好标题和封面。");
+            return;
+          } catch {
+            const jsonpPayload = await fetchViaJsonp(apiUrl);
+            applyMetaFromPayload(jsonpPayload);
+            showStatus("已通过兼容模式抓取标题和封面。");
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          showStatus(`抓取失败：${msg}。可手动填写。`, true);
+        }
+      };
+
+      const saveEntry = async () => {
+        if (!isAdmin) return;
+        const item = {
+          id: (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`).toString(),
+          url: normalizeUrl(linkInput.value),
+          title: normalizeUrl(titleInput.value),
+          cover: normalizeCover(coverInput.value),
+          reason: normalizeUrl(reasonInput.value),
+          createdAt: new Date().toISOString(),
+        };
+
+        if (!item.url) {
+          showStatus("请先输入视频链接。", true);
+          return;
+        }
+        if (!item.title) {
+          showStatus("请先抓取或填写标题。", true);
+          return;
+        }
+
+        const next = [item, ...itemsState].slice(0, 60);
+        const ok = await writeItems(next);
+        if (!ok) return;
+
+        renderCards();
+        closeModal();
+      };
+
+      const setEditMode = (next) => {
+        if (!isAdmin) return;
+        editMode = next;
+        openBtn.textContent = editMode ? "完成" : "编辑";
+        if (!editMode) closeModal();
+        renderCards();
+      };
+
+      openBtn.addEventListener("click", () => setEditMode(!editMode));
+      closeBtn.addEventListener("click", closeModal);
+      cancelBtn.addEventListener("click", closeModal);
+      fetchBtn.addEventListener("click", fetchMeta);
+      saveBtn.addEventListener("click", saveEntry);
+      coverInput.addEventListener("input", syncCoverPreview);
+      linkInput.addEventListener("change", () => {
+        if (normalizeUrl(linkInput.value)) fetchMeta();
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !modal.hidden) closeModal();
+      });
+
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) closeModal();
+      });
+
+      (async () => {
+        await Promise.all([loadItems(), loadAdminState()]);
+        renderCards();
+      })();
     })();
   </script>
 
   <style lang="scss">
   @use "../styles/mixins" as m;
 
-  #home-schedule-list{
+  .home-next-grid{
     display: grid;
-    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
   }
 
-  :global(.schedule-row){
+  :global(.home-next-card){
     @include m.glass;
     @include m.hover-float;
     border-radius: var(--r-lg);
-    padding: 12px;
+    padding: 16px;
     display: grid;
-    grid-template-columns: 1fr 220px;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) 156px;
+    gap: 16px;
     align-items: center;
     color: inherit;
     text-decoration: none;
   }
-  :global(.schedule-main){
+  :global(.home-next-copy){
     min-width: 0;
   }
-  :global(.schedule-when){
+  :global(.home-next-member){
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.12);
+  }
+  :global(.home-next-card.fiona .home-next-member){
+    background: rgba(244, 125, 177, .16);
+    border-color: rgba(244, 125, 177, .28);
+  }
+  :global(.home-next-card.gladys .home-next-member){
+    background: rgba(123, 133, 255, .16);
+    border-color: rgba(123, 133, 255, .28);
+  }
+  :global(.home-next-title-row){
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  :global(.home-next-when){
     font-size: 13px;
     color: rgba(255,255,255,.72);
     margin-bottom: 6px;
   }
-  :global(.schedule-title){
-    font-size: 18px;
+  :global(.home-next-title),
+  :global(.home-next-empty){
+    font-size: 22px;
     font-weight: 700;
-    margin-bottom: 4px;
+    line-height: 1.2;
+    flex: 1 1 auto;
+    min-width: 0;
   }
-  :global(.schedule-meta){
+  :global(.home-next-pill){
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.16);
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  :global(.home-next-meta){
     color: rgba(255,255,255,.62);
     font-size: 13px;
   }
-  :global(.schedule-cover-wrap){
+  :global(.home-next-cover-wrap){
     justify-self: end;
     width: 100%;
-    min-height: 120px;
-    border-radius: 12px;
+    max-width: 156px;
+    min-height: 96px;
+    border-radius: 16px;
     overflow: hidden;
     border: 1px solid rgba(255,255,255,.14);
     background: rgba(0,0,0,.2);
   }
-  :global(.schedule-cover){
+  :global(.home-next-cover){
     width: 100%;
     height: 100%;
     display: block;
     object-fit: cover;
-    border-radius: 0;
-    border: 0;
-    box-shadow: none;
-    transform: translateZ(0);
-    transition: transform .2s ease, box-shadow .2s ease;
+    transition: transform .2s ease, filter .2s ease;
   }
-  :global(.schedule-row:hover .schedule-cover){
+  :global(.home-next-card:hover .home-next-cover){
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0,0,0,.22);
+    filter: saturate(1.06);
   }
 
-  .rec{
+  :global(a.rec-custom){
     @include m.glass;
     @include m.hover-float;
     border-radius: var(--r-lg);
-    padding: 14px 14px;
+    padding: 14px;
+    display: block;
+    position: relative;
+  }
+  :global(.rec-custom .cover){
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.14);
+    margin: 8px 0 10px;
     display: block;
   }
-  .rt{ font-weight: 700; margin-bottom: 6px; }
-  .rd{ color: rgba(255,255,255,.65); font-size: 13px; min-height: 34px; }
-  .meta{ display:flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 8px; }
+  :global(.rec-custom .rt){ font-weight: 700; margin-bottom: 6px; }
+  :global(.rec-custom .rd){ color: rgba(255,255,255,.65); font-size: 13px; min-height: 34px; }
+  .admin-bar{
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+  }
+  .admin-btn{
+    border: 1px solid rgba(255,255,255,.16);
+    border-radius: 999px;
+    background: rgba(20,20,30,.5);
+    color: rgba(255,255,255,.9);
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  }
+  .admin-btn[hidden]{
+    display: none !important;
+  }
+  .admin-btn:hover{
+    border-color: rgba(255,255,255,.32);
+    background: rgba(40,40,60,.64);
+  }
+  .admin-btn.primary{
+    background: rgba(74, 206, 148, .2);
+    border-color: rgba(74, 206, 148, .5);
+    color: rgba(224,255,241,.98);
+  }
+
+  :global(.rec-delete){
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,120,120,.45);
+    background: rgba(28,10,14,.72);
+    color: rgba(255,214,214,.95);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 3;
+    display: grid;
+    place-items: center;
+    transition: transform var(--dur) var(--ease), border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+  }
+  :global(.rec-delete:hover){
+    transform: scale(1.04);
+    border-color: rgba(255,142,142,.75);
+    background: rgba(60,14,22,.86);
+  }
+
+  :global(button.rec-add-slot){
+    appearance: none;
+    border-radius: var(--r-lg);
+    border: 1px dashed rgba(255,255,255,.28);
+    background:
+      linear-gradient(160deg, rgba(18, 22, 38, .62), rgba(12, 15, 26, .48));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.05);
+    min-height: 250px;
+    width: 100%;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    transition:
+      transform var(--dur) var(--ease),
+      border-color var(--dur) var(--ease),
+      background var(--dur) var(--ease);
+  }
+  :global(button.rec-add-slot:hover){
+    transform: translateY(-3px);
+    border-color: rgba(160, 225, 196, .55);
+    background:
+      linear-gradient(160deg, rgba(28, 40, 55, .7), rgba(18, 26, 38, .6));
+  }
+  :global(button.rec-add-slot .plus){
+    width: 54px;
+    height: 54px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.24);
+    background: rgba(255,255,255,.07);
+    color: rgba(230,255,244,.96);
+    font-size: 30px;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+  }
+
+  .admin-modal{
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: grid;
+    place-items: center;
+    background: rgba(0,0,0,.56);
+    padding: 16px;
+  }
+  .admin-modal[hidden]{
+    display: none !important;
+  }
+  .admin-panel{
+    width: min(760px, 100%);
+    max-height: min(86vh, 900px);
+    overflow: auto;
+    border-radius: 20px;
+    padding: 16px;
+    @include m.glass;
+  }
+  .admin-head{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .admin-head h3{
+    margin: 0;
+    font-size: 18px;
+  }
+  .admin-close{
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(0,0,0,.3);
+    color: rgba(255,255,255,.9);
+    cursor: pointer;
+  }
+  .admin-grid{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .field{
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field.full{
+    grid-column: 1 / -1;
+  }
+  .field span{
+    font-size: 12px;
+    color: rgba(255,255,255,.78);
+  }
+  .field input,
+  .field textarea{
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(0,0,0,.34);
+    color: rgba(255,255,255,.92);
+    padding: 10px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  .field textarea{
+    resize: vertical;
+    min-height: 76px;
+  }
+  .field.actions{
+    justify-content: flex-end;
+  }
+  .cover-preview{
+    width: 100%;
+    max-width: 320px;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.2);
+  }
+  .admin-status{
+    min-height: 20px;
+    margin: 12px 0 0;
+    color: rgba(255,255,255,.86);
+    font-size: 13px;
+  }
+  .admin-status.err{
+    color: rgb(255 171 171);
+  }
+  .admin-actions{
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 960px){
+    .home-next-grid{
+      grid-template-columns: 1fr;
+    }
+  }
 
   @media (max-width: 860px){
-    :global(.schedule-row){
+    :global(.home-next-card){
       grid-template-columns: 1fr;
       padding: 14px;
     }
-    :global(.schedule-cover-wrap){
+    :global(.home-next-title),
+    :global(.home-next-empty){
+      font-size: 20px;
+    }
+    :global(.home-next-cover-wrap){
       justify-self: start;
+      width: 100%;
+      max-width: 100%;
+    }
+  }
+
+  @media (max-width: 720px){
+    .admin-panel{
+      padding: 14px;
+      border-radius: 16px;
+    }
+    .admin-actions{
+      flex-direction: column;
+    }
+    .admin-actions .admin-btn{
       width: 100%;
     }
   }

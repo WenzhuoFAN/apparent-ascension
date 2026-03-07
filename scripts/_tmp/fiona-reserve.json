@@ -1,0 +1,454 @@
+{
+  "id_str": "1176281277711515648",
+  "type": "DYNAMIC_TYPE_DRAW",
+  "basic": {
+    "rid_str": "387049111",
+    "comment_type": 11,
+    "comment_id_str": "387049111",
+    "like_icon": {
+      "id": "1748247783001",
+      "start_url": "",
+      "action_url": "https://i0.hdslb.com/bfs/garb/f1b7d09bf2acbe96f10bed5991c5929963f99ac7.bin",
+      "end_url": ""
+    },
+    "in_audit": false,
+    "is_only_fans": false,
+    "editable": false,
+    "open_app_extra": "",
+    "jump_url": "//www.bilibili.com/opus/1176281277711515648",
+    "aigc": false
+  },
+  "visible": true,
+  "modules": {
+    "module_tag": null,
+    "module_author": {
+      "type": "AUTHOR_TYPE_NORMAL",
+      "avatar": {
+        "container_size": {
+          "width": 1.35,
+          "height": 1.35
+        },
+        "layers": [],
+        "fallback_layers": {
+          "group_id": "",
+          "layers": [
+            {
+              "layer_id": "",
+              "visible": true,
+              "general_spec": {
+                "pos_spec": {
+                  "coordinate_pos": 2,
+                  "axis_x": 0.675,
+                  "axis_y": 0.675
+                },
+                "size_spec": {
+                  "width": 1,
+                  "height": 1
+                },
+                "render_spec": {
+                  "opacity": 1
+                }
+              },
+              "layer_config": {
+                "tags": {
+                  "AVATAR_LAYER": {
+                    "config_type": 0
+                  },
+                  "GENERAL_CFG": {
+                    "config_type": 1,
+                    "general_config": {
+                      "web_css_style": {
+                        "borderRadius": "50%"
+                      }
+                    }
+                  }
+                },
+                "is_critical": true,
+                "allow_over_paint": false,
+                "layer_mask": null
+              },
+              "resource": {
+                "res_type": 3,
+                "res_image": {
+                  "image_src": {
+                    "src_type": 1,
+                    "placeholder": 6,
+                    "remote": {
+                      "url": "https://i1.hdslb.com/bfs/face/994a4c66de1803e0a9e2fb3f72e0e5adaf84e486.jpg",
+                      "bfs_style": "widget-layer-avatar"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "layer_id": "",
+              "visible": true,
+              "general_spec": {
+                "pos_spec": {
+                  "coordinate_pos": 1,
+                  "axis_x": 0.8000000000000002,
+                  "axis_y": 0.8000000000000002
+                },
+                "size_spec": {
+                  "width": 0.41666666666666663,
+                  "height": 0.41666666666666663
+                },
+                "render_spec": {
+                  "opacity": 1
+                }
+              },
+              "layer_config": {
+                "tags": {
+                  "GENERAL_CFG": {
+                    "config_type": 1,
+                    "general_config": {
+                      "web_css_style": {
+                        "background-color": "rgb(255,255,255)",
+                        "border": "2px solid rgba(255,255,255,1)",
+                        "borderRadius": "50%",
+                        "boxSizing": "border-box"
+                      }
+                    }
+                  },
+                  "ICON_LAYER": {
+                    "config_type": 0
+                  }
+                },
+                "is_critical": false,
+                "allow_over_paint": false,
+                "layer_mask": null
+              },
+              "resource": {
+                "res_type": 3,
+                "res_image": {
+                  "image_src": {
+                    "src_type": 2,
+                    "placeholder": 0,
+                    "local": 3
+                  }
+                }
+              }
+            }
+          ],
+          "group_mask": null,
+          "is_critical_group": true
+        },
+        "mid": "3537115310721181"
+      },
+      "face": "https://i1.hdslb.com/bfs/face/994a4c66de1803e0a9e2fb3f72e0e5adaf84e486.jpg",
+      "face_nft": false,
+      "nft_info": null,
+      "name": "心宜不是心仪",
+      "name_render": null,
+      "label": "",
+      "mid": 3537115310721181,
+      "jump_url": "//space.bilibili.com/3537115310721181/dynamic",
+      "following": true,
+      "pub_ts": "1772712727",
+      "pub_time": "2天前",
+      "pub_action": "",
+      "pub_location_text": "",
+      "pendant": {
+        "pid": 0,
+        "name": "",
+        "image": "",
+        "expire": "0",
+        "image_enhance": "",
+        "image_enhance_frame": "",
+        "n_pid": "0"
+      },
+      "vip": {
+        "type": 2,
+        "status": 1,
+        "due_date": "1809792000000",
+        "vip_pay_type": 0,
+        "theme_type": 0,
+        "label": {
+          "path": "http://i0.hdslb.com/bfs/vip/label_annual.png",
+          "text": "年度大会员",
+          "label_theme": "annual_vip",
+          "text_color": "#FFFFFF",
+          "bg_style": 1,
+          "bg_color": "#FB7299",
+          "border_color": "",
+          "use_img_label": true,
+          "img_label_uri_hans": "",
+          "img_label_uri_hant": "",
+          "img_label_uri_hans_static": "https://i0.hdslb.com/bfs/vip/8d4f8bfc713826a5412a0a27eaaac4d6b9ede1d9.png",
+          "img_label_uri_hant_static": "https://i0.hdslb.com/bfs/activity-plat/static/20220614/e369244d0b14644f5e1a06431e22a4d5/VEW8fCC0hg.png"
+        },
+        "avatar_subscript": 1,
+        "nickname_color": "#FB7299",
+        "role": "3",
+        "avatar_subscript_url": "",
+        "tv_vip_status": 0,
+        "tv_vip_pay_type": 0,
+        "tv_due_date": "0",
+        "avatar_icon": {
+          "icon_type": 1,
+          "icon_resource": {
+            "type": 0,
+            "url": ""
+          }
+        }
+      },
+      "official_verify": {
+        "type": 0,
+        "desc": ""
+      },
+      "decorate": null,
+      "decoration_card": {
+        "id": "68308",
+        "item_id": "68308",
+        "name": "露米露娜收藏集勋章",
+        "card_url": "https://i0.hdslb.com/bfs/garb/open/85be6194826add8afd4bec5fc7eab822a507b1ca",
+        "big_card_url": "https://i0.hdslb.com/bfs/garb/open/85be6194826add8afd4bec5fc7eab822a507b1ca",
+        "card_type": "2",
+        "expire_time": "0",
+        "card_type_name": "免费",
+        "jump_url": "https://www.bilibili.com/h5/mall/digital-card/home?act_id=102034&from=post&f_source=garb&-Abrowser=live&hybrid_set_header=2&navhide=1&anchor_task=1",
+        "fan": {
+          "is_fan": "1",
+          "number": "2864",
+          "color": "#BFC8D2",
+          "name": "XXXX",
+          "num_desc": "002864",
+          "num_prefix": "",
+          "color_format": {
+            "start_point": "0,0",
+            "end_point": "100,100",
+            "colors": [
+              "#B8C7D0FF",
+              "#A2A7B0FF"
+            ],
+            "gradients": [
+              "0",
+              "100"
+            ]
+          }
+        },
+        "image_enhance": "https://i0.hdslb.com/bfs/garb/open/85be6194826add8afd4bec5fc7eab822a507b1ca",
+        "image_group": null
+      },
+      "is_top": false,
+      "icon_badge": null
+    },
+    "module_more": {
+      "rcmd_text": "",
+      "three_point_items": [
+        {
+          "label": "举报",
+          "type": "THREE_POINT_REPORT",
+          "params": {},
+          "modal": null,
+          "jump_url": ""
+        }
+      ]
+    },
+    "module_dispute": null,
+    "module_dynamic": {
+      "topic": null,
+      "desc": null,
+      "major": {
+        "type": "MAJOR_TYPE_OPUS",
+        "none": null,
+        "blocked": null,
+        "archive": null,
+        "pgc": null,
+        "courses": null,
+        "draw": null,
+        "article": null,
+        "music": null,
+        "common": null,
+        "upower_common": null,
+        "live": null,
+        "live_rcmd": null,
+        "medialist": null,
+        "subscription": null,
+        "ugc_season": null,
+        "subscription_new": null,
+        "opus": {
+          "jump_url": "//www.bilibili.com/opus/1176281277711515648",
+          "title": "",
+          "summary": {
+            "text": "没想到啊没想到！今天居然被陶瓷小朋友打爆了。\n无法原谅。\n明天继续挑战完《小小梦魇2》！\n正好是晚上玩恐怖游戏诶[UP_3537115310721181_拍肚子]\n要来陪宜宝玩哦[心宜和思诺的交响乐谱_欸嘿]",
+            "rich_text_nodes": [
+              {
+                "text": "没想到啊没想到！今天居然被陶瓷小朋友打爆了。\n无法原谅。\n明天继续挑战完《小小梦魇2》！\n正好是晚上玩恐怖游戏诶",
+                "orig_text": "没想到啊没想到！今天居然被陶瓷小朋友打爆了。\n无法原谅。\n明天继续挑战完《小小梦魇2》！\n正好是晚上玩恐怖游戏诶",
+                "type": "RICH_TEXT_NODE_TYPE_TEXT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": null,
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "[UP_3537115310721181_拍肚子]",
+                "orig_text": "[UP_3537115310721181_拍肚子]",
+                "type": "RICH_TEXT_NODE_TYPE_EMOJI",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": {
+                  "type": "10",
+                  "size": 2,
+                  "text": "[UP_3537115310721181_拍肚子]",
+                  "icon_url": "https://i0.hdslb.com/bfs/garb/668bbcdc48679a7cbbcacb495c0102efb40581bf.png",
+                  "gif_url": "",
+                  "webp_url": "",
+                  "jump_url": "",
+                  "jump_title": "拍肚子"
+                },
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "\n要来陪宜宝玩哦",
+                "orig_text": "\n要来陪宜宝玩哦",
+                "type": "RICH_TEXT_NODE_TYPE_TEXT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": null,
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "[心宜和思诺的交响乐谱_欸嘿]",
+                "orig_text": "[心宜和思诺的交响乐谱_欸嘿]",
+                "type": "RICH_TEXT_NODE_TYPE_EMOJI",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": {
+                  "type": "3",
+                  "size": 2,
+                  "text": "[心宜和思诺的交响乐谱_欸嘿]",
+                  "icon_url": "https://i0.hdslb.com/bfs/garb/d336e9ab1612e36ba394680eb8692d147f301e17.png",
+                  "gif_url": "",
+                  "webp_url": "",
+                  "jump_url": "https://www.bilibili.com/h5/mall/digital-card/home?act_id=107781&from=emoji&f_source=garb&-Abrowser=live&hybrid_set_header=2&navhide=1&anchor_task=1&lottery_id=107782",
+                  "jump_title": "欸嘿"
+                },
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              }
+            ],
+            "paragraphs": [],
+            "has_more": false
+          },
+          "style": 0,
+          "pics": [],
+          "fold_action": [
+            "展开",
+            "收起"
+          ]
+        }
+      },
+      "additional": {
+        "type": "ADDITIONAL_TYPE_RESERVE",
+        "goods": null,
+        "vote": null,
+        "common": null,
+        "match": null,
+        "ugc": null,
+        "reserve": {
+          "title": "直播预约：【2D】打完小小梦魇2o.O",
+          "desc1": {
+            "text": "03-06 22:00 直播",
+            "style": 0,
+            "jump_url": "",
+            "icon_url": "",
+            "visible": false
+          },
+          "desc2": {
+            "text": "1960人预约",
+            "style": 0,
+            "jump_url": "",
+            "icon_url": "",
+            "visible": true
+          },
+          "desc3": null,
+          "premiere": null,
+          "badge_text": "",
+          "jump_url": "",
+          "button": {
+            "type": 2,
+            "jump_style": null,
+            "jump_url": "",
+            "check": {
+              "icon_url": "",
+              "text": "已预约",
+              "interactive": null,
+              "bg_style": 0,
+              "toast": "",
+              "disable": 0
+            },
+            "uncheck": {
+              "icon_url": "",
+              "text": "已结束",
+              "interactive": null,
+              "bg_style": 0,
+              "toast": "直播已结束",
+              "disable": 1
+            },
+            "status": 1,
+            "click_type": 0
+          },
+          "rid": 5430503,
+          "reserve_total": 1960,
+          "state": 0,
+          "stype": 2,
+          "up_mid": "3537115310721181"
+        },
+        "upower_lottery": null
+      }
+    },
+    "module_extend": null,
+    "module_stat": {
+      "forward": {
+        "status": false,
+        "count": 1,
+        "forbidden": false,
+        "disabled": false,
+        "silent": false,
+        "hidden": false
+      },
+      "comment": {
+        "status": false,
+        "count": 185,
+        "forbidden": false,
+        "disabled": false,
+        "silent": false,
+        "hidden": false
+      },
+      "like": {
+        "status": true,
+        "count": 2427,
+        "forbidden": false,
+        "disabled": false,
+        "silent": false,
+        "hidden": false
+      }
+    },
+    "module_interaction": null,
+    "module_share_info": null,
+    "module_fold": null
+  },
+  "orig": null
+}

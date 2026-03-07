@@ -16,7 +16,8 @@
     "set:bili-cookie": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/set-bili-cookie-from-curl.ps1",
     "extract:schedule:image": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/extract-schedule-from-image.ps1",
     "fetch:schedule:image": "node scripts/fetch-pinned-schedule-image.mjs",
-    "update:schedule:from-pinned": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-schedule-from-pinned.ps1"
+    "update:schedule:from-pinned": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/update-schedule-from-pinned.ps1",
+    "import:schedule:from-pinned": "node scripts/import-schedule-from-pinned.mjs"
   },
   "dependencies": {
     "@astrojs/node": "^9.5.0",

@@ -61,18 +61,18 @@ const memberIntroCards = [
     <p class="p intro-note">上面简介为对萌娘百科词条的简要整理，完整信息请点“萌娘百科”查看。</p>
   </Section>
 
-  <Section title="入坑必看">
+  <Section title="推荐作品">
     <div class="admin-bar">
       <button class="admin-btn" id="open-rec-admin" type="button" hidden>编辑</button>
     </div>
 
     <div class="grid cols-3" id="must-rec-grid"></div>
-    <p class="p" id="must-empty-msg">还没有“入坑必看”条目，登录管理员后点击“编辑”添加。</p>
+    <p class="p" id="must-empty-msg">还没有“推荐作品”条目，登录管理员后点击“编辑”添加。</p>
   </Section>
 
-  <Section title="千克必看">
+  <Section title="鸣潮翻唱">
     <div class="grid cols-3" id="kilo-rec-grid"></div>
-    <p class="p" id="kilo-empty-msg">还没有“千克必看”条目，登录管理员后点击“编辑”添加。</p>
+    <p class="p" id="kilo-empty-msg">还没有“鸣潮翻唱”条目，登录管理员后点击“编辑”添加。</p>
   </Section>
 
   <div class="admin-modal" id="rec-admin-modal" hidden>
@@ -91,8 +91,8 @@ const memberIntroCards = [
         <label class="field">
           <span>板块（由 + 位置决定）</span>
           <select id="rec-section-input" disabled>
-            <option value="must">入坑必看</option>
-            <option value="kilo">千克必看</option>
+            <option value="must">推荐作品</option>
+            <option value="kilo">鸣潮翻唱</option>
           </select>
         </label>
 

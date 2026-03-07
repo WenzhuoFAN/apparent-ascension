@@ -10,10 +10,74 @@ const MEMBERS = {
 const DB_CONTENT_KEY = "stats.followers.v1";
 const METRICS_DIR = path.join(process.cwd(), "src/content/metrics");
 const METRICS_FILE = path.join(METRICS_DIR, "all.json");
+const REPORT_TIME_ZONE = "Asia/Shanghai";
+const REPORT_CUTOFF_HOUR = 5;
 
 function dateCN() {
   const fmt = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Shanghai" });
   return fmt.format(new Date()); // YYYY-MM-DD
+}
+
+function localParts(date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: REPORT_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const pick = (type) => parts.find((part) => part.type === type)?.value ?? "";
+
+  return {
+    year: pick("year"),
+    month: pick("month"),
+    day: pick("day"),
+    hour: Number(pick("hour") || "0"),
+  };
+}
+
+function isoDateFromParts(parts) {
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function shiftIsoDate(date, days) {
+  const [year, month, day] = String(date || "")
+    .split("-")
+    .map((value) => Number(value));
+  const value = new Date(Date.UTC(year, month - 1, day));
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function normalizeMetricDate(date, capturedAt) {
+  if (!capturedAt) return date;
+
+  const captured = new Date(capturedAt);
+  if (Number.isNaN(captured.getTime())) return date;
+
+  const parts = localParts(captured);
+  const localDate = isoDateFromParts(parts);
+
+  if (parts.hour < REPORT_CUTOFF_HOUR) {
+    const previousDate = shiftIsoDate(localDate, -1);
+
+    // Old rows used the capture day. New rows persist the reporting day directly.
+    if (date === localDate || date === previousDate) return previousDate;
+  }
+
+  return date || localDate;
+}
+
+function reportDateCN(capturedAt) {
+  const captured = new Date(capturedAt);
+  if (Number.isNaN(captured.getTime())) return dateCN();
+
+  const parts = localParts(captured);
+  const localDate = isoDateFromParts(parts);
+  return parts.hour < REPORT_CUTOFF_HOUR ? shiftIsoDate(localDate, -1) : localDate;
 }
 
 function pickConnectionString() {
@@ -101,9 +165,11 @@ function normalizeRows(raw) {
   const rows = [];
   for (const item of raw) {
     if (!isMetricRow(item)) continue;
+    const capturedAt = typeof item.capturedAt === "string" ? item.capturedAt : undefined;
+    const normalizedDate = normalizeMetricDate(item.date, capturedAt);
     rows.push({
-      date: item.date,
-      capturedAt: typeof item.capturedAt === "string" ? item.capturedAt : undefined,
+      date: normalizedDate,
+      capturedAt,
       member: item.member,
       followers: item.followers,
       note: typeof item.note === "string" ? item.note : undefined,
@@ -212,7 +278,6 @@ async function saveRowsToFile(rows, jsonFiles) {
 }
 
 async function main() {
-  const date = dateCN();
   const connectionString = pickConnectionString();
   const persistMode = resolvePersistMode(connectionString);
 
@@ -229,9 +294,11 @@ async function main() {
 
   for (const [member, cfg] of Object.entries(MEMBERS)) {
     const followers = await fetchFollower(cfg.mid);
+    const capturedAt = new Date().toISOString();
+    const date = reportDateCN(capturedAt);
     upsertMetric(rows, {
       date,
-      capturedAt: new Date().toISOString(),
+      capturedAt,
       member,
       followers,
       note: "auto",

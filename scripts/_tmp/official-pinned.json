@@ -1,0 +1,596 @@
+{
+  "id_str": "1175041206816604163",
+  "type": "DYNAMIC_TYPE_DRAW",
+  "basic": {
+    "rid_str": "386441218",
+    "comment_type": 11,
+    "comment_id_str": "386441218",
+    "like_icon": {
+      "id": "1748247783001",
+      "start_url": "",
+      "action_url": "https://i0.hdslb.com/bfs/garb/f1b7d09bf2acbe96f10bed5991c5929963f99ac7.bin",
+      "end_url": ""
+    },
+    "in_audit": false,
+    "is_only_fans": false,
+    "editable": false,
+    "open_app_extra": "",
+    "jump_url": "//www.bilibili.com/opus/1175041206816604163",
+    "aigc": false
+  },
+  "visible": true,
+  "modules": {
+    "module_tag": {
+      "text": "置顶"
+    },
+    "module_author": {
+      "type": "AUTHOR_TYPE_NORMAL",
+      "avatar": {
+        "container_size": {
+          "width": 1.35,
+          "height": 1.35
+        },
+        "layers": [],
+        "fallback_layers": {
+          "group_id": "",
+          "layers": [
+            {
+              "layer_id": "",
+              "visible": true,
+              "general_spec": {
+                "pos_spec": {
+                  "coordinate_pos": 2,
+                  "axis_x": 0.675,
+                  "axis_y": 0.675
+                },
+                "size_spec": {
+                  "width": 1,
+                  "height": 1
+                },
+                "render_spec": {
+                  "opacity": 1
+                }
+              },
+              "layer_config": {
+                "tags": {
+                  "AVATAR_LAYER": {
+                    "config_type": 0
+                  },
+                  "GENERAL_CFG": {
+                    "config_type": 1,
+                    "general_config": {
+                      "web_css_style": {
+                        "borderRadius": "50%"
+                      }
+                    }
+                  }
+                },
+                "is_critical": true,
+                "allow_over_paint": false,
+                "layer_mask": null
+              },
+              "resource": {
+                "res_type": 3,
+                "res_image": {
+                  "image_src": {
+                    "src_type": 1,
+                    "placeholder": 6,
+                    "remote": {
+                      "url": "https://i1.hdslb.com/bfs/face/b0146002e264f9930bad0557aa91fcff758df5c6.jpg",
+                      "bfs_style": "widget-layer-avatar"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "group_mask": null,
+          "is_critical_group": true
+        },
+        "mid": "3493085336046382"
+      },
+      "face": "https://i1.hdslb.com/bfs/face/b0146002e264f9930bad0557aa91fcff758df5c6.jpg",
+      "face_nft": false,
+      "nft_info": null,
+      "name": "枝江娱乐官方",
+      "name_render": null,
+      "label": "",
+      "mid": 3493085336046382,
+      "jump_url": "//space.bilibili.com/3493085336046382/dynamic",
+      "following": true,
+      "pub_ts": "1772424000",
+      "pub_time": "03月02日",
+      "pub_action": "",
+      "pub_location_text": "",
+      "pendant": {
+        "pid": 0,
+        "name": "",
+        "image": "",
+        "expire": "0",
+        "image_enhance": "",
+        "image_enhance_frame": "",
+        "n_pid": "0"
+      },
+      "vip": {
+        "type": 1,
+        "status": 0,
+        "due_date": "1745337600000",
+        "vip_pay_type": 0,
+        "theme_type": 0,
+        "label": {
+          "path": "",
+          "text": "",
+          "label_theme": "",
+          "text_color": "",
+          "bg_style": 0,
+          "bg_color": "",
+          "border_color": "",
+          "use_img_label": true,
+          "img_label_uri_hans": "",
+          "img_label_uri_hant": "",
+          "img_label_uri_hans_static": "https://i0.hdslb.com/bfs/vip/d7b702ef65a976b20ed854cbd04cb9e27341bb79.png",
+          "img_label_uri_hant_static": "https://i0.hdslb.com/bfs/activity-plat/static/20220614/e369244d0b14644f5e1a06431e22a4d5/KJunwh19T5.png"
+        },
+        "avatar_subscript": 0,
+        "nickname_color": "",
+        "role": "0",
+        "avatar_subscript_url": "",
+        "tv_vip_status": 0,
+        "tv_vip_pay_type": 0,
+        "tv_due_date": "0",
+        "avatar_icon": {
+          "icon_type": 0,
+          "icon_resource": {
+            "type": 0,
+            "url": ""
+          }
+        }
+      },
+      "official_verify": {
+        "type": -1,
+        "desc": ""
+      },
+      "decorate": null,
+      "decoration_card": {
+        "id": "1700024363001",
+        "item_id": "1700024363001",
+        "name": "阿草和TA的朋友们粉丝",
+        "card_url": "https://i0.hdslb.com/bfs/garb/e7f8cd49a65e84c1eeffa56f2c0fe88efae0cf72.png",
+        "big_card_url": "https://i0.hdslb.com/bfs/garb/e7f8cd49a65e84c1eeffa56f2c0fe88efae0cf72.png",
+        "card_type": "2",
+        "expire_time": "0",
+        "card_type_name": "免费",
+        "jump_url": "https://www.bilibili.com/h5/mall/equity-link/collect-home?item_id=1700024363001&isdiy=0&part=card&from=post&f_source=garb&vmid=3493085336046382&native.theme=1&navhide=1",
+        "fan": {
+          "is_fan": "1",
+          "number": "3",
+          "color": "#FC966E",
+          "name": "阿草和TA的朋友们",
+          "num_desc": "000003",
+          "num_prefix": "",
+          "color_format": {
+            "start_point": "0,0",
+            "end_point": "0,100",
+            "colors": [
+              "#FC966EFF",
+              "#FC966EFF"
+            ],
+            "gradients": [
+              "0",
+              "100"
+            ]
+          }
+        },
+        "image_enhance": "https://i0.hdslb.com/bfs/garb/e7f8cd49a65e84c1eeffa56f2c0fe88efae0cf72.png",
+        "image_group": null
+      },
+      "is_top": false,
+      "icon_badge": null
+    },
+    "module_more": {
+      "rcmd_text": "",
+      "three_point_items": [
+        {
+          "label": "举报",
+          "type": "THREE_POINT_REPORT",
+          "params": {},
+          "modal": null,
+          "jump_url": ""
+        }
+      ]
+    },
+    "module_dispute": null,
+    "module_dynamic": {
+      "topic": null,
+      "desc": null,
+      "major": {
+        "type": "MAJOR_TYPE_OPUS",
+        "none": null,
+        "blocked": null,
+        "archive": null,
+        "pgc": null,
+        "courses": null,
+        "draw": null,
+        "article": null,
+        "music": null,
+        "common": null,
+        "upower_common": null,
+        "live": null,
+        "live_rcmd": null,
+        "medialist": null,
+        "subscription": null,
+        "ugc_season": null,
+        "subscription_new": null,
+        "opus": {
+          "jump_url": "//www.bilibili.com/opus/1175041206816604163",
+          "title": "",
+          "summary": {
+            "text": "枝江娱乐3.2-3.8的日程表来啦~！  \n3月3日的【A-SOUL小剧场】，是在@乃琳Queen 的直播间；\n3月3日的【有点宜思的世界】，是在@心宜不是心仪 的直播间；\n3月6日的【嘉然&贝拉直播】，是在@贝拉kira 的直播间；\n---------------------------------------------------------  \n感谢大家对枝江娱乐旗下艺人的关注与支持：\n @贝拉kira @嘉然今天吃什么 @乃琳Queen @心宜不是心仪 @思诺snow\n",
+            "rich_text_nodes": [
+              {
+                "text": "枝江娱乐3.2-3.8的日程表来啦~！  \n3月3日的【A-SOUL小剧场】，是在",
+                "orig_text": "枝江娱乐3.2-3.8的日程表来啦~！  \n3月3日的【A-SOUL小剧场】，是在",
+                "type": "RICH_TEXT_NODE_TYPE_TEXT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": null,
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "@乃琳Queen",
+                "orig_text": "@乃琳Queen",
+                "type": "RICH_TEXT_NODE_TYPE_AT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "672342685",
+                "emoji": null,
+                "goods": null,
+                "style": {
+                  "color": "",
+                  "bg_color": "",
+                  "font_size": 17,
+                  "font_level": "regular",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false
+                },
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": " 的直播间；\n3月3日的【有点宜思的世界】，是在",
+                "orig_text": " 的直播间；\n3月3日的【有点宜思的世界】，是在",
+                "type": "RICH_TEXT_NODE_TYPE_TEXT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": null,
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "@心宜不是心仪",
+                "orig_text": "@心宜不是心仪",
+                "type": "RICH_TEXT_NODE_TYPE_AT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "3537115310721181",
+                "emoji": null,
+                "goods": null,
+                "style": {
+                  "color": "",
+                  "bg_color": "",
+                  "font_size": 17,
+                  "font_level": "regular",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false
+                },
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": " 的直播间；\n3月6日的【嘉然&贝拉直播】，是在",
+                "orig_text": " 的直播间；\n3月6日的【嘉然&贝拉直播】，是在",
+                "type": "RICH_TEXT_NODE_TYPE_TEXT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": null,
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "@贝拉kira",
+                "orig_text": "@贝拉kira",
+                "type": "RICH_TEXT_NODE_TYPE_AT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "672353429",
+                "emoji": null,
+                "goods": null,
+                "style": {
+                  "color": "",
+                  "bg_color": "",
+                  "font_size": 17,
+                  "font_level": "regular",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false
+                },
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": " 的直播间；\n---------------------------------------------------------  \n感谢大家对枝江娱乐旗下艺人的关注与支持：\n ",
+                "orig_text": " 的直播间；\n---------------------------------------------------------  \n感谢大家对枝江娱乐旗下艺人的关注与支持：\n ",
+                "type": "RICH_TEXT_NODE_TYPE_TEXT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": null,
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "@贝拉kira",
+                "orig_text": "@贝拉kira",
+                "type": "RICH_TEXT_NODE_TYPE_AT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "672353429",
+                "emoji": null,
+                "goods": null,
+                "style": {
+                  "color": "",
+                  "bg_color": "",
+                  "font_size": 17,
+                  "font_level": "regular",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false
+                },
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": " ",
+                "orig_text": " ",
+                "type": "RICH_TEXT_NODE_TYPE_TEXT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": null,
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "@嘉然今天吃什么",
+                "orig_text": "@嘉然今天吃什么",
+                "type": "RICH_TEXT_NODE_TYPE_AT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "672328094",
+                "emoji": null,
+                "goods": null,
+                "style": {
+                  "color": "",
+                  "bg_color": "",
+                  "font_size": 17,
+                  "font_level": "regular",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false
+                },
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": " ",
+                "orig_text": " ",
+                "type": "RICH_TEXT_NODE_TYPE_TEXT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": null,
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "@乃琳Queen",
+                "orig_text": "@乃琳Queen",
+                "type": "RICH_TEXT_NODE_TYPE_AT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "672342685",
+                "emoji": null,
+                "goods": null,
+                "style": {
+                  "color": "",
+                  "bg_color": "",
+                  "font_size": 17,
+                  "font_level": "regular",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false
+                },
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": " ",
+                "orig_text": " ",
+                "type": "RICH_TEXT_NODE_TYPE_TEXT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": null,
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "@心宜不是心仪",
+                "orig_text": "@心宜不是心仪",
+                "type": "RICH_TEXT_NODE_TYPE_AT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "3537115310721181",
+                "emoji": null,
+                "goods": null,
+                "style": {
+                  "color": "",
+                  "bg_color": "",
+                  "font_size": 17,
+                  "font_level": "regular",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false
+                },
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": " ",
+                "orig_text": " ",
+                "type": "RICH_TEXT_NODE_TYPE_TEXT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": null,
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "@思诺snow",
+                "orig_text": "@思诺snow",
+                "type": "RICH_TEXT_NODE_TYPE_AT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "3537115310721781",
+                "emoji": null,
+                "goods": null,
+                "style": {
+                  "color": "",
+                  "bg_color": "",
+                  "font_size": 17,
+                  "font_level": "regular",
+                  "bold": false,
+                  "italic": false,
+                  "underline": false,
+                  "strikethrough": false
+                },
+                "pics": [],
+                "video": null
+              },
+              {
+                "text": "\n",
+                "orig_text": "\n",
+                "type": "RICH_TEXT_NODE_TYPE_TEXT",
+                "jump_url": "",
+                "icon_url": "",
+                "icon_name": "",
+                "rid": "",
+                "emoji": null,
+                "goods": null,
+                "style": null,
+                "pics": [],
+                "video": null
+              }
+            ],
+            "paragraphs": [],
+            "has_more": false
+          },
+          "style": 0,
+          "pics": [
+            {
+              "url": "http://i0.hdslb.com/bfs/new_dyn/831d34b3b1c4a352a9a7e32bb03266cf3493085336046382.jpg",
+              "width": 3000,
+              "height": 2599,
+              "size": 1481.119140625,
+              "live_url": "",
+              "aigc": 0,
+              "warning": null
+            }
+          ],
+          "fold_action": [
+            "展开",
+            "收起"
+          ]
+        }
+      },
+      "additional": null
+    },
+    "module_extend": null,
+    "module_stat": {
+      "forward": {
+        "status": false,
+        "count": 6,
+        "forbidden": false,
+        "disabled": false,
+        "silent": false,
+        "hidden": false
+      },
+      "comment": {
+        "status": false,
+        "count": 365,
+        "forbidden": false,
+        "disabled": false,
+        "silent": false,
+        "hidden": false
+      },
+      "like": {
+        "status": false,
+        "count": 459,
+        "forbidden": false,
+        "disabled": false,
+        "silent": false,
+        "hidden": false
+      }
+    },
+    "module_interaction": null,
+    "module_share_info": null,
+    "module_fold": null
+  },
+  "orig": null
+}

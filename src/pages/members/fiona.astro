@@ -10,7 +10,7 @@ const { clips: allClips, fanworks: allFanworks } = await getAllRecommendations()
 const clips = allClips.filter((x) => x.member === "fiona" || x.member === "both").slice(0, 6);
 const fanworks = allFanworks.filter((x) => x.member === "fiona" || x.member === "both").slice(0, 6);
 ---
-<BaseLayout title="Fiona（心宜）｜成员页" description="关键词、风格、推荐观看清单、常用链接">
+<BaseLayout title="Fiona（心宜）｜成员页" description="推荐观看清单与常用链接">
   <NavBar slot="nav" />
 
   <h1 class="h1">Fiona（心宜）🫧</h1>
@@ -21,16 +21,13 @@ const fanworks = allFanworks.filter((x) => x.member === "fiona" || x.member === 
       <Card href="https://space.bilibili.com/3537115310721181" title="B站主页" desc="关注 / 投稿 / 动态入口" icon="🔗" />
       <Card href="/schedule" title="去看日程表" desc="找到下一场直播" icon="🗓️" />
       <Card href="https://zh.moegirl.org.cn/%E5%BF%83%E5%AE%9C" title="萌娘百科词条" desc="基础设定 / 补背景信息" icon="📘" />
+      <Card
+        href="https://www.bilibili.com/v/topic/detail?topic_id=1120163&topic_name=%E4%BB%8A%E6%97%A5%E5%AE%9C%E5%BF%83%E5%8A%A8&spm_id_from=333.1387.list.card_topic.click"
+        title="话题页"
+        desc="今日宜心动"
+        icon="🏷️"
+      />
     </div>
-  </Section>
-
-  <Section title="人设/风格关键词" subtitle="按新粉高频问题整理，后续可继续细化。">
-    <ul class="ul">
-      <li>整体气质：甜系声线，偏陪伴感与互动感。</li>
-      <li>内容节奏：歌回、杂谈、整活切换快，弹幕参与度高。</li>
-      <li>常见标签：软萌、反差、梗密度高、情绪价值。</li>
-      <li>入坑建议：先看梗百科/高热切片，再补近期联动或歌回。</li>
-    </ul>
   </Section>
 
   <Section title="推荐内容（从精选库聚合）" subtitle="展示最近/最适合安利的条目；你也可以以后加“置顶推荐”。">
@@ -46,8 +43,6 @@ const fanworks = allFanworks.filter((x) => x.member === "fiona" || x.member === 
 
   <style lang="scss">
   @use "../../styles/mixins" as m;
-  .ul{ margin: 0; padding-left: 18px; color: rgba(255,255,255,.78); }
-  .ul li{ margin: 6px 0; }
 
   .rec{
     @include m.glass;

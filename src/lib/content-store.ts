@@ -2,6 +2,7 @@ import { query } from "./db";
 
 export const CONTENT_KEYS = {
   schedule: "schedule.manual.entries.v3",
+  homeLatest: "home.latest.recs.v1",
   startCustom: "start.custom.recs.v1",
   libraryCustom: "library.custom.recs.v1",
   startHiddenStatic: "start.hidden.static.recs.v1",
@@ -11,12 +12,26 @@ export const CONTENT_KEYS = {
 export const PUBLIC_CONTENT_KEYS = new Set<string>(Object.values(CONTENT_KEYS));
 export const ADMIN_MUTABLE_CONTENT_KEYS = new Set<string>(Object.values(CONTENT_KEYS));
 
+type ScheduleRoom = "fiona" | "gladys" | "both";
+type ScheduleSourceType = "manual" | "auto";
+
 type ScheduleEntry = {
+  id: string;
   title: string;
   date: string;
   time: string;
-  room: "fiona" | "gladys";
+  room: ScheduleRoom;
+  category?: string;
+  mode?: string;
+  tags: string[];
+  sourceType: ScheduleSourceType;
+  sourceMid?: string;
+  sourceDynamicId?: string;
+  sourceUrl?: string;
+  imageUrl?: string;
+  confidence?: number;
   updatedAt?: string;
+  importedAt?: string;
 };
 
 type StartCustomRec = {
@@ -29,7 +44,7 @@ type StartCustomRec = {
   createdAt?: string;
 };
 
-type LibraryCustomRec = {
+type ManualRecommendation = {
   id: string;
   url: string;
   title: string;
@@ -52,25 +67,79 @@ const isObject = (x: unknown): x is Record<string, unknown> => !!x && typeof x =
 
 const clampString = (value: unknown, maxLen: number) => String(value || "").trim().slice(0, maxLen);
 
+const normalizeStringArray = (value: unknown, limit: number, itemMaxLen: number) => {
+  if (!Array.isArray(value)) return [] as string[];
+  return value.map((item) => clampString(item, itemMaxLen)).filter(Boolean).slice(0, limit);
+};
+
+const normalizeScheduleRoom = (value: unknown): ScheduleRoom | null => {
+  if (value === "fiona" || value === "gladys" || value === "both") return value;
+  return null;
+};
+
+const normalizeScheduleSourceType = (value: unknown): ScheduleSourceType =>
+  value === "auto" ? "auto" : "manual";
+
+const clampScheduleConfidence = (value: unknown) => {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return undefined;
+  return Math.max(0, Math.min(1, Math.round(num * 100) / 100));
+};
+
+const createScheduleId = (title: string, date: string, time: string, room: ScheduleRoom) => {
+  try {
+    const raw = `${date}|${time}|${room}|${title}`;
+    return `schedule-${Buffer.from(raw, "utf8").toString("base64url").slice(0, 48)}`;
+  } catch {
+    return `schedule-${date}-${time}-${room}`;
+  }
+};
+
 const normalizeSchedule = (value: unknown): ScheduleEntry[] => {
   if (!Array.isArray(value)) return [];
   const out: ScheduleEntry[] = [];
+  const seen = new Set<string>();
   for (const row of value) {
     if (!isObject(row)) continue;
     const title = clampString(row.title, 200);
     const date = clampString(row.date, 10);
     const time = clampString(row.time, 5);
-    const room = row.room === "gladys" ? "gladys" : row.room === "fiona" ? "fiona" : null;
+    const room = normalizeScheduleRoom(row.room);
     if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time) || !room) continue;
+
+    const id = clampString(row.id, 120) || createScheduleId(title, date, time, room);
+    if (seen.has(id)) continue;
+    seen.add(id);
+
     out.push({
+      id,
       title,
       date,
       time,
       room,
+      category: clampString(row.category ?? row.type, 40) || undefined,
+      mode: clampString(row.mode, 32) || undefined,
+      tags: normalizeStringArray(row.tags, 10, 24),
+      sourceType: normalizeScheduleSourceType(row.sourceType),
+      sourceMid: clampString(row.sourceMid, 24) || undefined,
+      sourceDynamicId: clampString(row.sourceDynamicId, 80) || undefined,
+      sourceUrl: clampString(row.sourceUrl, 500) || undefined,
+      imageUrl: clampString(row.imageUrl, 500) || undefined,
+      confidence: clampScheduleConfidence(row.confidence),
       updatedAt: clampString(row.updatedAt, 64) || undefined,
+      importedAt: clampString(row.importedAt, 64) || undefined,
     });
   }
-  return out.slice(0, 366);
+
+  out.sort((a, b) => {
+    const byDateTime = `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`);
+    if (byDateTime !== 0) return byDateTime;
+    const byRoom = a.room.localeCompare(b.room);
+    if (byRoom !== 0) return byRoom;
+    return a.title.localeCompare(b.title);
+  });
+
+  return out.slice(0, 800);
 };
 
 const normalizeStartCustom = (value: unknown): StartCustomRec[] => {
@@ -98,9 +167,9 @@ const normalizeStartCustom = (value: unknown): StartCustomRec[] => {
   return out.slice(0, 120);
 };
 
-const normalizeLibraryCustom = (value: unknown): LibraryCustomRec[] => {
+const normalizeManualRecommendations = (value: unknown): ManualRecommendation[] => {
   if (!Array.isArray(value)) return [];
-  const out: LibraryCustomRec[] = [];
+  const out: ManualRecommendation[] = [];
   for (const row of value) {
     if (!isObject(row)) continue;
     const id = clampString(row.id, 80);
@@ -166,8 +235,9 @@ const normalizeNotices = (value: unknown): NoticeEntry[] => {
 
 export const normalizeContentByKey = (key: string, value: unknown): unknown => {
   if (key === CONTENT_KEYS.schedule) return normalizeSchedule(value);
+  if (key === CONTENT_KEYS.homeLatest) return normalizeManualRecommendations(value);
   if (key === CONTENT_KEYS.startCustom) return normalizeStartCustom(value);
-  if (key === CONTENT_KEYS.libraryCustom) return normalizeLibraryCustom(value);
+  if (key === CONTENT_KEYS.libraryCustom) return normalizeManualRecommendations(value);
   if (key === CONTENT_KEYS.startHiddenStatic) return normalizeHiddenStatic(value);
   if (key === CONTENT_KEYS.notices) return normalizeNotices(value);
   throw new Error(`Unsupported content key: ${key}`);
@@ -175,6 +245,7 @@ export const normalizeContentByKey = (key: string, value: unknown): unknown => {
 
 const defaultValueByKey = (key: string): unknown => {
   if (key === CONTENT_KEYS.schedule) return [];
+  if (key === CONTENT_KEYS.homeLatest) return [];
   if (key === CONTENT_KEYS.startCustom) return [];
   if (key === CONTENT_KEYS.libraryCustom) return [];
   if (key === CONTENT_KEYS.startHiddenStatic) return [];

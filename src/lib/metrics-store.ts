@@ -12,6 +12,8 @@ export type MetricRow = {
 };
 
 const DB_CONTENT_KEY = "stats.followers.v1";
+const REPORT_TIME_ZONE = "Asia/Shanghai";
+const REPORT_CUTOFF_HOUR = 5;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object";
@@ -19,6 +21,56 @@ const isObject = (value: unknown): value is Record<string, unknown> =>
 const clamp = (value: unknown, maxLen: number) => String(value ?? "").trim().slice(0, maxLen);
 
 const isIsoDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value);
+
+const toLocalParts = (value: Date) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: REPORT_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(value);
+
+  const pick = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+
+  return {
+    year: pick("year"),
+    month: pick("month"),
+    day: pick("day"),
+    hour: Number(pick("hour") || "0"),
+  };
+};
+
+const toIsoDate = (year: string, month: string, day: string) => `${year}-${month}-${day}`;
+
+const shiftIsoDate = (date: string, days: number) => {
+  const [year, month, day] = date.split("-").map(Number);
+  const value = new Date(Date.UTC(year, month - 1, day));
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+};
+
+const normalizeMetricDate = (date: string, capturedAt?: string) => {
+  if (!capturedAt) return date;
+
+  const captured = new Date(capturedAt);
+  if (Number.isNaN(captured.getTime())) return date;
+
+  const parts = toLocalParts(captured);
+  const localDate = toIsoDate(parts.year, parts.month, parts.day);
+  if (!isIsoDate(localDate)) return date;
+
+  if (parts.hour < REPORT_CUTOFF_HOUR) {
+    const previousDate = shiftIsoDate(localDate, -1);
+
+    // Old rows were stored with the capture day. New rows already store the reporting day.
+    if (date === localDate || date === previousDate) return previousDate;
+  }
+
+  return date || localDate;
+};
 
 const normalizeMember = (value: unknown): MetricMember | null => {
   if (value === "fiona" || value === "gladys" || value === "both") return value;
@@ -35,9 +87,10 @@ const normalizeMetricRow = (raw: unknown): MetricRow | null => {
 
   const capturedAt = clamp(raw.capturedAt, 64);
   const note = clamp(raw.note, 120);
+  const normalizedDate = normalizeMetricDate(date, capturedAt || undefined);
 
   return {
-    date,
+    date: normalizedDate,
     member,
     followers,
     capturedAt: capturedAt || undefined,

@@ -10,7 +10,7 @@ const { clips: allClips, fanworks: allFanworks } = await getAllRecommendations()
 const clips = allClips.filter((x) => x.member === "gladys" || x.member === "both").slice(0, 6);
 const fanworks = allFanworks.filter((x) => x.member === "gladys" || x.member === "both").slice(0, 6);
 ---
-<BaseLayout title="Gladys（思诺）｜成员页" description="关键词、风格、推荐观看清单、常用链接">
+<BaseLayout title="Gladys（思诺）｜成员页" description="推荐观看清单与常用链接">
   <NavBar slot="nav" />
 
   <h1 class="h1">Gladys（思诺）🌙</h1>
@@ -21,16 +21,13 @@ const fanworks = allFanworks.filter((x) => x.member === "gladys" || x.member ===
       <Card href="https://space.bilibili.com/3537115310721781" title="B站主页" desc="关注 / 投稿 / 动态入口" icon="🔗" />
       <Card href="/schedule" title="去看日程表" desc="找到下一场直播" icon="🗓️" />
       <Card href="https://zh.moegirl.org.cn/%E6%80%9D%E8%AF%BA" title="萌娘百科词条" desc="基础设定 / 补背景信息" icon="📘" />
+      <Card
+        href="https://www.bilibili.com/v/topic/detail?topic_id=1123339&topic_name=%E5%B0%8F%E6%B5%B7%E8%AF%BA%E5%98%80%E5%98%80%E5%98%80%E5%90%B9&spm_id_from=333.1387.list.card_topic.click"
+        title="话题页"
+        desc="小海诺嘎嘎嘎吹"
+        icon="🏷️"
+      />
     </div>
-  </Section>
-
-  <Section title="人设/风格关键词" subtitle="先给新粉可快速理解的版本。">
-    <ul class="ul">
-      <li>整体气质：冷静外壳下的吐槽系幽默，反差感明显。</li>
-      <li>内容节奏：歌回、杂谈、互动问答都偏稳定耐听。</li>
-      <li>常见标签：清冷、克制、反差、梗回收能力强。</li>
-      <li>入坑建议：先看代表性歌回，再补高互动杂谈与联动。</li>
-    </ul>
   </Section>
 
   <Section title="推荐内容（从精选库聚合）">
@@ -46,8 +43,6 @@ const fanworks = allFanworks.filter((x) => x.member === "gladys" || x.member ===
 
   <style lang="scss">
   @use "../../styles/mixins" as m;
-  .ul{ margin: 0; padding-left: 18px; color: rgba(255,255,255,.78); }
-  .ul li{ margin: 6px 0; }
 
   .rec{
     @include m.glass;

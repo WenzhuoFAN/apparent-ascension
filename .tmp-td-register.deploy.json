@@ -1,26 +1,12 @@
 {
+    "family":  "default-fandg-f-3815",
     "taskRoleArn":  "arn:aws:iam::000377555411:role/ecsTaskExecutionRole",
-    "volumes":  [
-
-                ],
-    "networkMode":  "awsvpc",
-    "placementConstraints":  [
-
-                             ],
-    "cpu":  "1024",
-    "runtimePlatform":  {
-                            "cpuArchitecture":  "X86_64",
-                            "operatingSystemFamily":  "LINUX"
-                        },
-    "memory":  "2048",
     "executionRoleArn":  "arn:aws:iam::000377555411:role/ecsTaskExecutionRole",
-    "requiresCompatibilities":  [
-                                    "FARGATE"
-                                ],
+    "networkMode":  "awsvpc",
     "containerDefinitions":  [
                                  {
                                      "name":  "Main",
-                                     "image":  "000377555411.dkr.ecr.ap-northeast-1.amazonaws.com/fandg-f@sha256:543fa18e969620176971df86dfc6a0e8db0fe9f8b9a72d95c138f4331d0f3453",
+                                     "image":  "000377555411.dkr.ecr.ap-northeast-1.amazonaws.com/fandg-f:20260307-193911",
                                      "cpu":  1024,
                                      "memory":  2048,
                                      "memoryReservation":  2048,
@@ -75,5 +61,19 @@
                                                         ]
                                  }
                              ],
-    "family":  "default-fandg-f-3815"
+    "volumes":  [
+
+                ],
+    "placementConstraints":  [
+
+                             ],
+    "requiresCompatibilities":  [
+                                    "FARGATE"
+                                ],
+    "cpu":  "1024",
+    "memory":  "2048",
+    "runtimePlatform":  {
+                            "cpuArchitecture":  "X86_64",
+                            "operatingSystemFamily":  "LINUX"
+                        }
 }

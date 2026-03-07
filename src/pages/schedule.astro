@@ -1,304 +1,338 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
 import NavBar from "../components/NavBar.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getAdminSession } from "../lib/admin-auth";
 
-const defaultTitle = "本月直播日程";
+const initialIsAdmin = Boolean(await getAdminSession(Astro));
+const pageDescription = "自动同步官方周表与预约动态，管理员登录后可校对和修正。";
+const defaultImportMid = "3493085336046382,3537115310721181,3537115310721781";
 const roomCoverMap = {
   fiona: "/images/FionaLive.jpg",
   gladys: "/images/GladysLive.jpg",
 };
 ---
-<BaseLayout title="日程表｜闪耀舞台" description="每周直播日程表（手动维护）">
+<BaseLayout title="日程表｜闪耀舞台" description={pageDescription}>
   <NavBar slot="nav" active="schedule" />
 
-  <h1 class="h1">直播日程表 🗓️</h1>
-  <p class="p">你每周手动更新即可：改标题、日期、时间、直播间。保存后会显示到下方“已保存日程”。</p>
+  <section class="schedule-shell">
+    <header class="page-head">
+      <h1 class="h1">直播日程表 🗓️</h1>
+      <p class="p">{pageDescription}</p>
+    </header>
 
-  <section class="calendar-wrap">
-    <div class="calendar-head">
-      <h2 class="h2">本月日历</h2>
-      <button class="edit-btn" id="open-editor" type="button" hidden>编辑</button>
-    </div>
-    <div class="calendar-month" id="calendar-month-label">--</div>
-    <div class="calendar-weekdays">
-      <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
-    </div>
-    <div class="calendar-grid" id="calendar-grid"></div>
+    <section class="calendar-panel">
+      <div class="toolbar">
+        <div>
+          <h2 class="h2">本月日历</h2>
+          <div class="month" id="calendar-month-label">--</div>
+        </div>
+
+        {
+          initialIsAdmin && (
+            <div class="admin-tools" id="admin-tools">
+              <input id="import-mids-input" type="text" value={defaultImportMid} placeholder="MID，逗号分隔" />
+              <input id="import-year-input" type="number" min="2024" max="2100" />
+              <button class="btn primary" id="import-schedule" type="button">从动态导入</button>
+              <button class="btn" id="open-editor" type="button">手动新增</button>
+            </div>
+          )
+        }
+      </div>
+
+      <p class="status" id="import-status" hidden={!initialIsAdmin}></p>
+
+      <div class="calendar-layout" id="calendar-layout">
+        <div class="board">
+        <div class="weekdays">
+          <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+        </div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+        </div>
+
+        <aside class="detail-panel" id="detail-panel" hidden>
+          <div class="detail-head">
+            <div>
+              <div class="detail-kicker">当日安排</div>
+              <h3 class="detail-date" id="detail-date-label">--</h3>
+            </div>
+            <div class="detail-head-actions">
+              <button class="btn detail-add-btn" id="detail-add-entry" type="button" hidden>为这一天新增</button>
+              <button class="btn detail-close-btn" id="detail-close" type="button">收起</button>
+            </div>
+          </div>
+
+          <p class="detail-meta" id="detail-meta-label">--</p>
+          <div class="detail-list" id="detail-list"></div>
+          <p class="detail-empty" id="detail-empty">当天暂无安排。</p>
+        </aside>
+      </div>
+    </section>
   </section>
 
-  <section class="saved-sec">
-    <div id="saved-list"></div>
-    <p class="p" id="saved-empty">暂无已保存日程。</p>
-  </section>
+  {
+    initialIsAdmin && (
+      <div class="modal" id="editor-modal" hidden>
+        <div class="modal-panel">
+          <div class="modal-head">
+            <h3 id="editor-title-text">日程编辑</h3>
+            <button class="icon-btn" id="close-editor" type="button" aria-label="关闭">×</button>
+          </div>
 
-  <div class="editor-modal" id="editor-modal" hidden>
-    <div class="editor-panel">
-      <div class="editor-head">
-        <h3>日程编辑</h3>
-        <button class="close-btn" id="close-editor" type="button" aria-label="关闭">×</button>
+          <label class="field">
+            <span>标题</span>
+            <input id="title-input" type="text" placeholder="例如：花与歌 / 有点宜思的世界" />
+          </label>
+
+          <div class="field-row">
+            <label class="field">
+              <span>日期</span>
+              <input id="date-input" type="date" />
+            </label>
+            <label class="field">
+              <span>时间</span>
+              <input id="time-input" type="time" step="600" />
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label class="field">
+              <span>直播间</span>
+              <select id="room-input">
+                <option value="fiona">心宜</option>
+                <option value="gladys">思诺</option>
+                <option value="both">双人</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>分类（可选）</span>
+              <input id="category-input" type="text" placeholder="歌回 / 杂谈 / 游戏 / 联动" />
+            </label>
+          </div>
+
+          <p class="source-note" id="source-summary" hidden></p>
+
+          <div class="modal-actions">
+            <button class="btn primary" id="save-entry" type="button">保存</button>
+            <button class="btn danger" id="delete-entry" type="button" hidden>删除</button>
+            <button class="btn" id="cancel-editor" type="button">取消</button>
+          </div>
+        </div>
       </div>
+    )
+  }
 
-      <label class="field">
-        <span>标题</span>
-        <input id="title-input" type="text" placeholder="例如：【心宜思诺的聊天室】马年大吉！" />
-      </label>
-
-      <label class="field">
-        <span>日期</span>
-        <input id="date-input" type="date" />
-      </label>
-
-      <label class="field">
-        <span>时间</span>
-        <input id="time-input" type="time" step="600" />
-      </label>
-
-      <label class="field">
-        <span>直播间</span>
-        <select id="room-input">
-          <option value="fiona">心宜</option>
-          <option value="gladys">思诺</option>
-        </select>
-      </label>
-
-      <div class="field">
-        <span>直播封面预览（自动）</span>
-        <img id="cover-preview" class="cover-preview" alt="" hidden />
-        <div id="cover-preview-empty" class="muted">未找到封面，请检查 `public/images/FionaLive.jpg` 与 `public/images/GladysLive.jpg`。</div>
-      </div>
-
-      <div class="editor-actions">
-        <button class="edit-btn primary" id="save-entry" type="button">保存</button>
-        <button class="edit-btn" id="clear-all" type="button">清空全部</button>
-        <button class="edit-btn" id="cancel-editor" type="button">取消</button>
-      </div>
-    </div>
-  </div>
-
-  <script define:vars={{ defaultTitle, roomCoverMap }}>
+  <script define:vars={{ initialIsAdmin, roomCoverMap, defaultImportMid }}>
     (() => {
       const CONTENT_KEY = "schedule.manual.entries.v3";
-      const fallbackTitle = String(defaultTitle || "本月直播日程");
-      const coverMap = roomCoverMap || { fiona: "", gladys: "" };
-      const roomLabelMap = { fiona: "心宜", gladys: "思诺" };
-      const roomMarkMap = { fiona: "🦭", gladys: "🐚" };
-
-      const openBtn = document.getElementById("open-editor");
-      const modal = document.getElementById("editor-modal");
-      const closeBtn = document.getElementById("close-editor");
-      const cancelBtn = document.getElementById("cancel-editor");
-      const saveBtn = document.getElementById("save-entry");
-      const clearBtn = document.getElementById("clear-all");
-
-      const titleInput = document.getElementById("title-input");
-      const dateInput = document.getElementById("date-input");
-      const timeInput = document.getElementById("time-input");
-      const roomInput = document.getElementById("room-input");
-      const previewImg = document.getElementById("cover-preview");
-      const previewEmpty = document.getElementById("cover-preview-empty");
-
-      const savedList = document.getElementById("saved-list");
-      const savedEmpty = document.getElementById("saved-empty");
-      const monthLabel = document.getElementById("calendar-month-label");
-      const calendarGrid = document.getElementById("calendar-grid");
-
-      if (!openBtn || !modal || !closeBtn || !cancelBtn || !saveBtn || !clearBtn) return;
-      if (!titleInput || !dateInput || !timeInput || !roomInput || !previewImg || !previewEmpty) return;
-      if (!savedList || !savedEmpty || !monthLabel || !calendarGrid) return;
-
-      let entriesState = [];
-      let isAdmin = false;
-      openBtn.hidden = true;
-
+      const state = { entries: [], isAdmin: Boolean(initialIsAdmin), editingId: "", selectedDate: "" };
+      const covers = roomCoverMap || {};
+      const roomLabel = { fiona: "心宜", gladys: "思诺", both: "心宜 / 思诺" };
+      const roomEmoji = { fiona: "🦭", gladys: "🐚" };
       const now = new Date();
-      const nowDateISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-      const pad2 = (n) => String(n).padStart(2, "0");
-      const normalizeTimeTo10Min = (time) => {
-        const match = String(time || "").match(/^(\d{2}):(\d{2})$/);
-        if (!match) return "";
-        let hh = Number(match[1]);
-        let mm = Number(match[2]);
-        if (Number.isNaN(hh) || Number.isNaN(mm)) return "";
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const today = `${year}-${String(month).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-        mm = Math.round(mm / 10) * 10;
-        if (mm >= 60) {
-          mm = 0;
-          hh = (hh + 1) % 24;
-        }
+      const $ = (id) => document.getElementById(id);
+      const monthLabel = $("calendar-month-label");
+      const calendarLayout = $("calendar-layout");
+      const calendarGrid = $("calendar-grid");
+      const detailPanel = $("detail-panel");
+      const detailDateLabel = $("detail-date-label");
+      const detailMetaLabel = $("detail-meta-label");
+      const detailList = $("detail-list");
+      const detailEmpty = $("detail-empty");
+      const detailAddBtn = $("detail-add-entry");
+      const detailCloseBtn = $("detail-close");
+      const importStatus = $("import-status");
+      const adminTools = $("admin-tools");
+      const importMidsInput = $("import-mids-input");
+      const importYearInput = $("import-year-input");
+      const importBtn = $("import-schedule");
+      const openBtn = $("open-editor");
+      const modal = $("editor-modal");
+      const editorTitleText = $("editor-title-text");
+      const closeBtn = $("close-editor");
+      const cancelBtn = $("cancel-editor");
+      const saveBtn = $("save-entry");
+      const deleteBtn = $("delete-entry");
+      const titleInput = $("title-input");
+      const dateInput = $("date-input");
+      const timeInput = $("time-input");
+      const roomInput = $("room-input");
+      const categoryInput = $("category-input");
+      const sourceSummary = $("source-summary");
+
+      if (!monthLabel || !calendarLayout || !calendarGrid || !detailPanel || !detailDateLabel || !detailMetaLabel || !detailList || !detailEmpty) return;
+
+      const pad2 = (n) => String(n).padStart(2, "0");
+      const entryId = (row) => String(row.id || [row.date, row.time, row.room, row.title].join("|"));
+      const contentUrl = (admin = false) => `${admin ? "/api/admin/content/" : "/api/content/"}${encodeURIComponent(CONTENT_KEY)}`;
+      const sortEntries = (rows) => [...rows].sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`) || a.id.localeCompare(b.id));
+      const normalizeTime = (value) => {
+        const m = String(value || "").match(/^(\d{2}):(\d{2})$/);
+        if (!m) return "";
+        let hh = Number(m[1]);
+        let mm = Math.round(Number(m[2]) / 10) * 10;
+        if (mm >= 60) { mm = 0; hh = (hh + 1) % 24; }
         return `${pad2(hh)}:${pad2(mm)}`;
       };
-      const nowTimeISO = normalizeTimeTo10Min(`${pad2(now.getHours())}:${pad2(now.getMinutes())}`) || "20:00";
 
-      const sortEntries = (entries) =>
-        [...entries].sort((a, b) => {
-          const ka = `${a.date}T${a.time}`;
-          const kb = `${b.date}T${b.time}`;
-          return ka.localeCompare(kb);
-        });
-
-      const contentUrl = (admin = false) =>
-        `${admin ? "/api/admin/content/" : "/api/content/"}${encodeURIComponent(CONTENT_KEY)}`;
+      const normalize = (row) => {
+        if (!row || typeof row !== "object") return null;
+        const title = String(row.title || "").trim();
+        const date = String(row.date || "").trim();
+        const time = String(row.time || "").trim();
+        const room = row.room === "both" ? "both" : row.room === "gladys" ? "gladys" : row.room === "fiona" ? "fiona" : null;
+        if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time) || !room) return null;
+        return {
+          id: entryId({ ...row, title, date, time, room }),
+          title,
+          date,
+          time,
+          room,
+          category: String(row.category || row.type || "").trim(),
+          mode: String(row.mode || "").trim(),
+          sourceType: row.sourceType === "auto" ? "auto" : "manual",
+          sourceDynamicId: String(row.sourceDynamicId || "").trim(),
+          sourceUrl: String(row.sourceUrl || "").trim(),
+          updatedAt: String(row.updatedAt || "").trim(),
+        };
+      };
 
       const fetchJson = async (url, init = {}) => {
         const response = await fetch(url, { cache: "no-store", ...init });
         let payload = null;
-        try {
-          payload = await response.json();
-        } catch {
-          payload = null;
-        }
+        try { payload = await response.json(); } catch { payload = null; }
         return { response, payload };
+      };
+
+      const setStatus = (message = "", error = false) => {
+        if (!importStatus) return;
+        importStatus.hidden = !message;
+        importStatus.textContent = message;
+        importStatus.classList.toggle("is-error", !!error);
+      };
+
+      const syncAdminUi = () => {
+        if (adminTools) adminTools.hidden = !state.isAdmin;
+        if (detailAddBtn) detailAddBtn.hidden = true;
+        if (!state.isAdmin && importStatus) importStatus.hidden = true;
       };
 
       const loadAdminState = async () => {
         try {
           const { response, payload } = await fetchJson("/api/admin/session");
-          if (!response.ok) {
-            isAdmin = false;
-            openBtn.hidden = true;
-            return;
-          }
-          isAdmin = !!payload?.authenticated;
-          openBtn.hidden = !isAdmin;
+          state.isAdmin = response.ok && !!payload?.authenticated;
         } catch {
-          isAdmin = false;
-          openBtn.hidden = true;
+          state.isAdmin = false;
         }
+        syncAdminUi();
       };
 
-      const loadEntries = async () => {
-        try {
-          const { response, payload } = await fetchJson(contentUrl(false));
-          if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
-            entriesState = [];
-            return;
-          }
-          entriesState = sortEntries(payload.data);
-        } catch {
-          entriesState = [];
-        }
+      const handleAdminExpired = () => {
+        state.isAdmin = false;
+        syncAdminUi();
+        if (modal) modal.hidden = true;
+        setStatus("管理员会话已失效，请重新登录 /admin。", true);
+        renderAll();
       };
 
-      const persistEntries = async (nextEntries) => {
-        if (!isAdmin) {
+      const persistEntries = async (rows) => {
+        if (!state.isAdmin) {
           alert("请先登录管理员账号：/admin");
           return false;
         }
-
-        const normalized = sortEntries(nextEntries);
         const { response, payload } = await fetchJson(contentUrl(true), {
           method: "PUT",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ data: normalized }),
+          body: JSON.stringify({ data: sortEntries(rows) }),
         });
-
-        if (response.status === 401) {
-          isAdmin = false;
-          openBtn.hidden = true;
-          alert("管理员会话已失效，请重新登录 /admin。");
-          return false;
-        }
+        if (response.status === 401) return handleAdminExpired(), false;
         if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
           alert(`保存失败：${payload?.message || response.statusText}`);
           return false;
         }
-
-        entriesState = sortEntries(payload.data);
+        state.entries = sortEntries(payload.data.map(normalize).filter(Boolean));
         return true;
       };
 
-      const getCoverByRoom = (room) => (room === "gladys" ? String(coverMap.gladys || "") : String(coverMap.fiona || ""));
-
-      const formatDateCN = (date) => {
-        const m = String(date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-        if (!m) return date || "--";
-        return `${Number(m[1])}年${Number(m[2])}月${Number(m[3])}日`;
+      const groupEntries = (entries) => {
+        const map = new Map();
+        for (const entry of sortEntries(entries)) {
+          const key = entry.date;
+          const bucket = map.get(key) || [];
+          bucket.push(entry);
+          map.set(key, bucket);
+        }
+        return map;
       };
 
-      const renderPreviewByRoom = (room) => {
-        const src = getCoverByRoom(room);
-        if (!src) {
-          previewImg.hidden = true;
-          previewImg.removeAttribute("src");
-          previewEmpty.hidden = false;
-          return;
+      const createCover = (entry) => {
+        const wrap = document.createElement("div");
+        wrap.className = "event-cover" + (entry.room === "both" ? " is-both" : "");
+        const appendImg = (src) => {
+          if (!src) return;
+          const img = document.createElement("img");
+          img.src = src;
+          img.alt = "";
+          img.loading = "lazy";
+          img.className = "event-cover-image";
+          img.onerror = () => img.remove();
+          wrap.appendChild(img);
+        };
+        if (entry.room === "both") {
+          appendImg(String(covers.fiona || ""));
+          appendImg(String(covers.gladys || ""));
+        } else {
+          appendImg(entry.room === "gladys" ? String(covers.gladys || "") : String(covers.fiona || ""));
         }
-
-        previewImg.onerror = () => {
-          previewImg.hidden = true;
-          previewEmpty.hidden = false;
-        };
-        previewImg.onload = () => {
-          previewImg.hidden = false;
-          previewEmpty.hidden = true;
-        };
-        previewImg.src = src;
+        if (!wrap.children.length) {
+          const fallback = document.createElement("div");
+          fallback.className = "event-cover-fallback";
+          fallback.textContent = roomLabel[entry.room] || "直播";
+          wrap.appendChild(fallback);
+        }
+        return wrap;
       };
 
-      const renderSavedList = (entries) => {
-        savedList.innerHTML = "";
-        if (!entries.length) {
-          savedEmpty.hidden = false;
-          return;
-        }
+      const openCreate = (dateValue = today) => {
+        if (!state.isAdmin || !modal || !editorTitleText || !titleInput || !dateInput || !timeInput || !roomInput || !categoryInput || !sourceSummary || !deleteBtn) return;
+        state.editingId = "";
+        editorTitleText.textContent = "手动新增日程";
+        titleInput.value = "";
+        dateInput.value = dateValue;
+        timeInput.value = "20:00";
+        roomInput.value = "fiona";
+        categoryInput.value = "";
+        sourceSummary.hidden = true;
+        sourceSummary.textContent = "";
+        deleteBtn.hidden = true;
+        modal.hidden = false;
+      };
 
-        savedEmpty.hidden = true;
-        entries.forEach((entry) => {
-          const card = document.createElement("article");
-          card.className = "saved-card";
-
-          const main = document.createElement("div");
-          main.className = "saved-main";
-
-          const when = document.createElement("div");
-          when.className = "saved-when";
-          when.textContent = `${formatDateCN(entry.date)} ${entry.time}`;
-
-          const title = document.createElement("div");
-          title.className = "saved-title";
-          title.textContent = entry.title || fallbackTitle;
-
-          const meta = document.createElement("div");
-          meta.className = "saved-meta";
-          meta.textContent = `直播间：${roomLabelMap[entry.room]}`;
-
-          main.append(when, title, meta);
-
-          const coverWrap = document.createElement("div");
-          coverWrap.className = "saved-cover-wrap";
-          const cover = document.createElement("img");
-          cover.className = "saved-cover";
-          cover.alt = "";
-          cover.loading = "lazy";
-          cover.src = getCoverByRoom(entry.room);
-          cover.onerror = () => {
-            coverWrap.innerHTML = '<div class="saved-cover-miss">封面缺失</div>';
-          };
-          coverWrap.appendChild(cover);
-
-          card.append(main, coverWrap);
-          savedList.appendChild(card);
-        });
+      const openEdit = (entry) => {
+        if (!state.isAdmin || !modal || !editorTitleText || !titleInput || !dateInput || !timeInput || !roomInput || !categoryInput || !sourceSummary || !deleteBtn) return;
+        state.editingId = entry.id;
+        editorTitleText.textContent = "编辑日程";
+        titleInput.value = entry.title;
+        dateInput.value = entry.date;
+        timeInput.value = entry.time;
+        roomInput.value = entry.room;
+        categoryInput.value = entry.category || "";
+        sourceSummary.hidden = !(entry.sourceDynamicId || entry.sourceUrl);
+        sourceSummary.textContent = entry.sourceUrl || entry.sourceDynamicId || "";
+        deleteBtn.hidden = false;
+        modal.hidden = false;
       };
 
       const renderCalendar = (entries) => {
-        const year = now.getFullYear();
-        const month = now.getMonth() + 1;
-
         monthLabel.textContent = `${year}年${month}月`;
         calendarGrid.innerHTML = "";
-
+        const byDate = groupEntries(entries.filter((entry) => entry.date.startsWith(`${year}-${pad2(month)}-`)));
         const firstDay = new Date(year, month - 1, 1);
         const daysInMonth = new Date(year, month, 0).getDate();
-        const start = (firstDay.getDay() + 6) % 7; // Monday=0
-
-        const marksByDate = new Map();
-        entries.forEach((entry) => {
-          if (!entry.date?.startsWith(`${year}-${String(month).padStart(2, "0")}-`)) return;
-          const set = marksByDate.get(entry.date) || new Set();
-          set.add(entry.room);
-          marksByDate.set(entry.date, set);
-        });
+        const start = (firstDay.getDay() + 6) % 7;
 
         for (let i = 0; i < start; i += 1) {
           const blank = document.createElement("div");
@@ -307,357 +341,516 @@ const roomCoverMap = {
         }
 
         for (let day = 1; day <= daysInMonth; day += 1) {
-          const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const dateKey = `${year}-${pad2(month)}-${pad2(day)}`;
+          const dayEntries = byDate.get(dateKey) || [];
           const cell = document.createElement("div");
-          cell.className = "cal-cell";
+          cell.className = `cal-cell${dateKey === today ? " is-today" : ""}${dayEntries.length ? " has-events" : ""}`;
 
+          const head = document.createElement("div");
+          head.className = "cal-head";
           const dayEl = document.createElement("div");
           dayEl.className = "cal-day";
           dayEl.textContent = String(day);
-
           const marks = document.createElement("div");
           marks.className = "cal-marks";
-          const roomSet = marksByDate.get(dateKey);
-          if (roomSet?.has("fiona")) {
-            const f = document.createElement("span");
-            f.className = "cal-mark fiona";
-            f.textContent = roomMarkMap.fiona;
-            marks.appendChild(f);
-          }
-          if (roomSet?.has("gladys")) {
-            const g = document.createElement("span");
-            g.className = "cal-mark gladys";
-            g.textContent = roomMarkMap.gladys;
-            marks.appendChild(g);
-          }
+          const roomSet = new Set();
+          dayEntries.forEach((entry) => {
+            if (entry.room === "both") { roomSet.add("fiona"); roomSet.add("gladys"); } else { roomSet.add(entry.room); }
+          });
+          ["fiona", "gladys"].forEach((room) => {
+            if (!roomSet.has(room)) return;
+            const mark = document.createElement("span");
+            mark.className = `cal-mark ${room}`;
+            mark.textContent = roomEmoji[room] || "•";
+            marks.appendChild(mark);
+          });
+          head.append(dayEl, marks);
+          cell.appendChild(head);
 
-          if (dateKey === nowDateISO) {
-            cell.classList.add("is-today");
-          }
+          const eventsWrap = document.createElement("div");
+          eventsWrap.className = "cal-events";
 
-          cell.append(dayEl, marks);
+          dayEntries.forEach((entry) => {
+            const card = document.createElement(state.isAdmin ? "button" : "article");
+            card.className = `event-card room-${entry.room}`;
+            if (state.isAdmin) {
+              card.type = "button";
+              card.addEventListener("click", () => openEdit(entry));
+            }
+
+            const meta = document.createElement("div");
+            meta.className = "event-meta";
+            const time = document.createElement("span");
+            time.className = "event-time";
+            time.textContent = entry.time;
+            const room = document.createElement("span");
+            room.className = "event-room";
+            room.textContent = roomLabel[entry.room] || "直播";
+            meta.append(time, room);
+
+            const title = document.createElement("div");
+            title.className = "event-title";
+            title.textContent = entry.title;
+
+            const body = document.createElement("div");
+            body.className = "event-body";
+            body.append(meta, title);
+
+            if (entry.mode || entry.category || state.isAdmin) {
+              const badges = document.createElement("div");
+              badges.className = "event-badges";
+              const source = document.createElement("span");
+              source.className = `event-badge source${entry.sourceType === "auto" ? " auto" : ""}`;
+              source.textContent = entry.sourceType === "auto" ? "自动" : "手动";
+              badges.appendChild(source);
+              if (!state.isAdmin) source.remove();
+              if (entry.mode) {
+                const mode = document.createElement("span");
+                mode.className = "event-badge mode";
+                mode.textContent = entry.mode;
+                badges.appendChild(mode);
+              }
+              if (entry.category) {
+                const category = document.createElement("span");
+                category.className = "event-badge";
+                category.textContent = entry.category;
+                badges.appendChild(category);
+              }
+              body.appendChild(badges);
+            }
+
+            card.append(createCover(entry), body);
+            eventsWrap.appendChild(card);
+          });
+
+          cell.appendChild(eventsWrap);
           calendarGrid.appendChild(cell);
         }
       };
 
-      const renderAll = () => {
-        const entries = sortEntries(entriesState);
-        renderSavedList(entries);
-        renderCalendar(entries);
+      const weekdayLabel = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+      const formatSelectedDate = (dateKey) => {
+        const matched = String(dateKey || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!matched) return dateKey || "--";
+        const date = new Date(Number(matched[1]), Number(matched[2]) - 1, Number(matched[3]));
+        return `${Number(matched[2])}月${Number(matched[3])}日 ${weekdayLabel[date.getDay()]}`;
       };
 
-      const openModal = () => {
-        if (!isAdmin) return;
-        titleInput.value = fallbackTitle;
-        dateInput.value = nowDateISO;
-        timeInput.value = nowTimeISO;
-        roomInput.value = "fiona";
-        renderPreviewByRoom("fiona");
-        modal.hidden = false;
+      const createBadges = (entry) => {
+        const badges = document.createElement("div");
+        badges.className = "event-badges";
+
+        if (entry.mode) {
+          const mode = document.createElement("span");
+          mode.className = "event-badge mode";
+          mode.textContent = entry.mode;
+          badges.appendChild(mode);
+        }
+
+        if (entry.category) {
+          const category = document.createElement("span");
+          category.className = "event-badge";
+          category.textContent = entry.category;
+          badges.appendChild(category);
+        }
+
+        if (state.isAdmin) {
+          const source = document.createElement("span");
+          source.className = `event-badge source${entry.sourceType === "auto" ? " auto" : ""}`;
+          source.textContent = entry.sourceType === "auto" ? "自动" : "手动";
+          badges.appendChild(source);
+        }
+
+        return badges.children.length ? badges : null;
       };
 
-      const closeModal = () => {
-        modal.hidden = true;
+      const createDetailCard = (entry) => {
+        const card = document.createElement(state.isAdmin ? "button" : "article");
+        card.className = `event-card detail-card room-${entry.room}`;
+        if (state.isAdmin) {
+          card.type = "button";
+          card.addEventListener("click", () => openEdit(entry));
+        }
+
+        const meta = document.createElement("div");
+        meta.className = "event-meta";
+        const time = document.createElement("span");
+        time.className = "event-time";
+        time.textContent = entry.time;
+        const room = document.createElement("span");
+        room.className = "event-room";
+        room.textContent = roomLabel[entry.room] || "直播";
+        meta.append(time, room);
+
+        const title = document.createElement("div");
+        title.className = "event-title detail-title";
+        title.textContent = entry.title;
+
+        const body = document.createElement("div");
+        body.className = "event-body";
+        body.append(meta, title);
+
+        const badges = createBadges(entry);
+        if (badges) body.appendChild(badges);
+
+        card.append(createCover(entry), body);
+        return card;
       };
 
-      roomInput.addEventListener("change", () => {
-        renderPreviewByRoom(roomInput.value);
-      });
-      timeInput.addEventListener("change", () => {
-        const fixed = normalizeTimeTo10Min(timeInput.value);
-        if (fixed) timeInput.value = fixed;
-      });
+      const renderDetail = (entriesByDate) => {
+        const selectedDate = state.selectedDate;
+        const hasSelection = Boolean(selectedDate);
+        detailPanel.hidden = !hasSelection;
+        calendarLayout.classList.toggle("has-detail", hasSelection);
 
-      openBtn.addEventListener("click", openModal);
-      closeBtn.addEventListener("click", closeModal);
-      cancelBtn.addEventListener("click", closeModal);
-
-      saveBtn.addEventListener("click", async () => {
-        if (!dateInput.value || !timeInput.value) {
-          alert("请先填写日期和时间。");
+        if (!selectedDate) {
+          detailDateLabel.textContent = "--";
+          detailMetaLabel.textContent = "";
+          detailList.innerHTML = "";
+          detailEmpty.hidden = false;
+          detailEmpty.textContent = "点击日历查看当天安排";
+          if (detailAddBtn) detailAddBtn.hidden = true;
           return;
         }
 
-        const room = roomInput.value === "gladys" ? "gladys" : "fiona";
-        const entry = {
-          title: titleInput.value.trim() || fallbackTitle,
-          date: dateInput.value,
-          time: normalizeTimeTo10Min(timeInput.value) || timeInput.value,
-          room,
-          updatedAt: new Date().toISOString(),
-        };
+        const selectedEntries = entriesByDate.get(selectedDate) || [];
 
-        const key = `${entry.date}|${entry.time}|${entry.room}`;
-        const next = entriesState.filter((x) => `${x.date}|${x.time}|${x.room}` !== key);
-        next.push(entry);
-        const ok = await persistEntries(next);
-        if (!ok) return;
+        detailDateLabel.textContent = formatSelectedDate(selectedDate);
+        detailMetaLabel.textContent = selectedEntries.length
+          ? `${selectedEntries.length} 场直播`
+          : "当天暂无直播安排";
+
+        detailList.innerHTML = "";
+        detailEmpty.hidden = selectedEntries.length > 0;
+        detailEmpty.textContent = state.isAdmin ? "当天暂无安排，可以直接新增一场直播。" : "当天暂无安排。";
+
+        selectedEntries.forEach((entry) => {
+          detailList.appendChild(createDetailCard(entry));
+        });
+
+        if (detailAddBtn) {
+          detailAddBtn.hidden = !state.isAdmin;
+          detailAddBtn.onclick = () => openCreate(selectedDate);
+        }
+      };
+
+      const renderOverview = (entries) => {
+        monthLabel.textContent = `${year}年${month}月`;
+        calendarGrid.innerHTML = "";
+        const monthPrefix = `${year}-${pad2(month)}-`;
+        const monthEntries = entries.filter((entry) => entry.date.startsWith(monthPrefix));
+        const byDate = groupEntries(monthEntries);
+        if (state.selectedDate && !state.selectedDate.startsWith(monthPrefix)) state.selectedDate = "";
+        const previewLimit = state.selectedDate ? 1 : 2;
+        const firstDay = new Date(year, month - 1, 1);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const start = (firstDay.getDay() + 6) % 7;
+
+        for (let i = 0; i < start; i += 1) {
+          const blank = document.createElement("div");
+          blank.className = "cal-cell is-empty";
+          calendarGrid.appendChild(blank);
+        }
+
+        for (let day = 1; day <= daysInMonth; day += 1) {
+          const dateKey = `${year}-${pad2(month)}-${pad2(day)}`;
+          const dayEntries = byDate.get(dateKey) || [];
+          const cell = document.createElement("button");
+          cell.type = "button";
+          cell.className = `cal-cell cal-overview${dateKey === today ? " is-today" : ""}${dayEntries.length ? " has-events" : ""}${state.selectedDate === dateKey ? " is-selected" : ""}`;
+          cell.addEventListener("click", () => {
+            state.selectedDate = state.selectedDate === dateKey ? "" : dateKey;
+            renderAll();
+          });
+
+          const head = document.createElement("div");
+          head.className = "cal-head";
+          const dayEl = document.createElement("div");
+          dayEl.className = "cal-day";
+          dayEl.textContent = String(day);
+          const marks = document.createElement("div");
+          marks.className = "cal-marks";
+          const roomSet = new Set();
+          dayEntries.forEach((entry) => {
+            if (entry.room === "both") {
+              roomSet.add("fiona");
+              roomSet.add("gladys");
+            } else {
+              roomSet.add(entry.room);
+            }
+          });
+          ["fiona", "gladys"].forEach((room) => {
+            if (!roomSet.has(room)) return;
+            const mark = document.createElement("span");
+            mark.className = `cal-mark ${room}`;
+            mark.textContent = roomEmoji[room] || "•";
+            marks.appendChild(mark);
+          });
+          head.append(dayEl, marks);
+          cell.appendChild(head);
+
+          const summary = document.createElement("div");
+          summary.className = "cal-summary";
+
+          if (!dayEntries.length) {
+            const empty = document.createElement("div");
+            empty.className = "cal-empty-copy";
+            empty.textContent = " ";
+            summary.appendChild(empty);
+          } else {
+            dayEntries.slice(0, previewLimit).forEach((entry) => {
+              const item = document.createElement("div");
+              item.className = `summary-item room-${entry.room}`;
+
+              const top = document.createElement("div");
+              top.className = "summary-top";
+              const time = document.createElement("span");
+              time.className = "summary-time";
+              time.textContent = entry.time;
+              const room = document.createElement("span");
+              room.className = "summary-room";
+              room.textContent = roomLabel[entry.room] || "直播";
+              top.append(time, room);
+
+              const title = document.createElement("div");
+              title.className = "summary-title";
+              title.textContent = entry.title;
+
+              item.append(top, title);
+              summary.appendChild(item);
+            });
+
+            if (dayEntries.length > previewLimit) {
+              const more = document.createElement("div");
+              more.className = "summary-more";
+              more.textContent = `还有 ${dayEntries.length - previewLimit} 场`;
+              summary.appendChild(more);
+            }
+          }
+
+          cell.appendChild(summary);
+          calendarGrid.appendChild(cell);
+        }
+
+        renderDetail(byDate);
+      };
+
+      const renderAll = () => {
+        state.entries = sortEntries(state.entries);
+        renderOverview(state.entries);
+      };
+
+      const loadEntries = async () => {
+        const { response, payload } = await fetchJson(contentUrl(false));
+        if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+          state.entries = [];
+          return;
+        }
+        state.entries = sortEntries(payload.data.map(normalize).filter(Boolean));
+      };
+
+      if (importYearInput) importYearInput.value = String(year);
+      if (openBtn) openBtn.addEventListener("click", () => openCreate());
+      if (detailCloseBtn) detailCloseBtn.addEventListener("click", () => {
+        state.selectedDate = "";
         renderAll();
-        closeModal();
       });
+      if (closeBtn && modal) closeBtn.addEventListener("click", () => { modal.hidden = true; });
+      if (cancelBtn && modal) cancelBtn.addEventListener("click", () => { modal.hidden = true; });
+      if (modal) modal.addEventListener("click", (event) => { if (event.target === modal) modal.hidden = true; });
+      window.addEventListener("keydown", (event) => { if (event.key === "Escape" && modal && !modal.hidden) modal.hidden = true; });
 
-      clearBtn.addEventListener("click", async () => {
-        if (!confirm("确定清空全部已保存日程吗？")) return;
-        const ok = await persistEntries([]);
-        if (!ok) return;
-        renderAll();
-        closeModal();
-      });
+      if (saveBtn) {
+        saveBtn.addEventListener("click", async () => {
+          if (!state.isAdmin || !titleInput || !dateInput || !timeInput || !roomInput || !categoryInput) return;
+          const title = String(titleInput.value || "").trim();
+          const date = String(dateInput.value || "").trim();
+          const time = normalizeTime(String(timeInput.value || "").trim()) || String(timeInput.value || "").trim();
+          const room = roomInput.value === "both" ? "both" : roomInput.value === "gladys" ? "gladys" : "fiona";
+          const category = String(categoryInput.value || "").trim();
+          if (!title || !date || !time) return alert("请先填写标题、日期和时间。");
 
-      modal.addEventListener("click", (event) => {
-        if (event.target === modal) closeModal();
-      });
+          let next = [...state.entries];
+          if (state.editingId) {
+            next = next.map((entry) => entry.id !== state.editingId ? entry : {
+              ...entry,
+              title,
+              date,
+              time,
+              room,
+              category,
+              sourceType: "manual",
+              updatedAt: new Date().toISOString(),
+            });
+          } else {
+            next.push({
+              id: globalThis.crypto?.randomUUID?.() || `manual-${Date.now()}`,
+              title,
+              date,
+              time,
+              room,
+              category,
+              sourceType: "manual",
+              updatedAt: new Date().toISOString(),
+            });
+          }
 
-      window.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && !modal.hidden) closeModal();
-      });
+          const ok = await persistEntries(next);
+          if (!ok) return;
+          renderAll();
+          if (modal) modal.hidden = true;
+        });
+      }
+
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", async () => {
+          if (!state.editingId) return;
+          const target = state.entries.find((entry) => entry.id === state.editingId);
+          if (!target || !confirm(`确定删除「${target.title}」吗？`)) return;
+          const ok = await persistEntries(state.entries.filter((entry) => entry.id !== state.editingId));
+          if (!ok) return;
+          renderAll();
+          if (modal) modal.hidden = true;
+        });
+      }
+
+      if (importBtn) {
+        importBtn.addEventListener("click", async () => {
+          if (!state.isAdmin || !importMidsInput || !importYearInput) return;
+          const mids = String(importMidsInput.value || defaultImportMid).split(",").map((x) => x.trim()).filter(Boolean);
+          const importYear = Number(importYearInput.value || year);
+          if (!mids.length) return setStatus("请至少填写一个 MID。", true);
+          importBtn.disabled = true;
+          setStatus("正在抓取动态并导入日程，请稍候…");
+          try {
+            const { response, payload } = await fetchJson("/api/admin/schedule/import", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ mids, year: importYear }),
+            });
+            if (response.status === 401) return handleAdminExpired();
+            if (!response.ok || !payload?.ok || !Array.isArray(payload.data)) {
+              return setStatus(`导入失败：${payload?.message || response.statusText}`, true);
+            }
+            state.entries = sortEntries(payload.data.map(normalize).filter(Boolean));
+            renderAll();
+            const summary = Array.isArray(payload.sources)
+              ? payload.sources.map((item) => item.ok ? `${item.mid} 导入 ${item.importedCount} 条` : `${item.mid} 失败`).join("；")
+              : `导入完成，共 ${payload.importedCount || 0} 条。`;
+            setStatus(summary);
+          } catch (error) {
+            setStatus(`导入失败：${error instanceof Error ? error.message : String(error)}`, true);
+          } finally {
+            importBtn.disabled = false;
+          }
+        });
+      }
 
       (async () => {
-        await Promise.all([loadEntries(), loadAdminState()]);
+        syncAdminUi();
+        await loadAdminState();
+        await loadEntries();
         renderAll();
       })();
     })();
   </script>
 
   <style lang="scss">
-  @use "../styles/mixins" as m;
+    @use "../styles/mixins" as m;
 
-  .calendar-wrap{
-    @include m.glass;
-    border-radius: var(--r-xl);
-    padding: 14px;
-    margin-bottom: 14px;
-  }
-  .calendar-head{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-  }
-  .calendar-month{
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 8px;
-  }
-  .calendar-weekdays{
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
-    margin-bottom: 8px;
-    color: rgba(255,255,255,.66);
-    font-size: 12px;
-    text-align: center;
-  }
-  .calendar-weekdays span{
-    padding: 4px 0;
-  }
-
-  :global(.calendar-grid){
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
-  }
-  :global(.cal-cell){
-    min-height: 64px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,.12);
-    background: rgba(0,0,0,.18);
-    padding: 8px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-  }
-  :global(.cal-cell.is-empty){
-    border-style: dashed;
-    opacity: .32;
-  }
-  :global(.cal-cell.is-today){
-    border-color: rgba(160,225,196,.58);
-    box-shadow: 0 0 0 1px rgba(160,225,196,.24) inset;
-  }
-  :global(.cal-day){
-    font-size: 12px;
-    color: rgba(255,255,255,.82);
-  }
-  :global(.cal-marks){
-    display: flex;
-    gap: 4px;
-    align-items: center;
-  }
-  :global(.cal-mark){
-    font-size: 16px;
-    line-height: 1;
-  }
-
-  #saved-list{
-    display: grid;
-    gap: 10px;
-  }
-  :global(.saved-card){
-    @include m.glass;
-    border-radius: var(--r-lg);
-    padding: 12px;
-    display: grid;
-    grid-template-columns: 1fr 220px;
-    gap: 12px;
-    align-items: center;
-  }
-  :global(.saved-main){
-    min-width: 0;
-  }
-  :global(.saved-when){
-    font-size: 13px;
-    color: rgba(255,255,255,.72);
-    margin-bottom: 6px;
-  }
-  :global(.saved-title){
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-  :global(.saved-meta){
-    color: rgba(255,255,255,.62);
-    font-size: 13px;
-  }
-  :global(.saved-cover-wrap){
-    min-height: 120px;
-    border-radius: 12px;
-    overflow: hidden;
-    border: 1px solid rgba(255,255,255,.14);
-    background: rgba(0,0,0,.2);
-  }
-  :global(.saved-cover){
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  :global(.saved-cover-miss){
-    width: 100%;
-    height: 100%;
-    min-height: 120px;
-    display: grid;
-    place-items: center;
-    color: rgba(255,255,255,.58);
-    font-size: 13px;
-  }
-
-  .edit-btn{
-    border: 1px solid rgba(255,255,255,.16);
-    border-radius: 999px;
-    background: rgba(20,20,30,.5);
-    color: rgba(255,255,255,.9);
-    padding: 7px 12px;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  .edit-btn[hidden]{
-    display: none !important;
-  }
-  .edit-btn.primary{
-    background: rgba(74, 206, 148, .18);
-    border-color: rgba(74, 206, 148, .5);
-    color: rgba(224,255,241,.98);
-  }
-  .edit-btn:hover{
-    border-color: rgba(255,255,255,.30);
-    background: rgba(40,40,60,.62);
-  }
-
-  .editor-modal{
-    position: fixed;
-    inset: 0;
-    z-index: 90;
-    display: grid;
-    place-items: center;
-    background: rgba(0,0,0,.56);
-    padding: 16px;
-  }
-  .editor-modal[hidden]{ display: none !important; }
-  .editor-panel{
-    width: min(620px, 100%);
-    border-radius: 20px;
-    padding: 16px;
-    @include m.glass;
-  }
-  .editor-head{
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-  }
-  .editor-head h3{
-    margin: 0;
-    font-size: 18px;
-  }
-  .close-btn{
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 1px solid rgba(255,255,255,.2);
-    background: rgba(0,0,0,.3);
-    color: rgba(255,255,255,.9);
-    cursor: pointer;
-  }
-  .field{
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 10px;
-  }
-  .field span{
-    font-size: 12px;
-    color: rgba(255,255,255,.78);
-  }
-  .field input,
-  .field select{
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,.16);
-    background: rgba(0,0,0,.34);
-    color: rgba(255,255,255,.92);
-    padding: 10px;
-    font-size: 14px;
-    font-family: inherit;
-  }
-  .field input[type="date"],
-  .field input[type="time"]{
-    color-scheme: dark;
-    padding-right: 42px;
-  }
-  .field input[type="date"]::-webkit-calendar-picker-indicator,
-  .field input[type="time"]::-webkit-calendar-picker-indicator{
-    opacity: .95;
-    filter: invert(1) brightness(1.2);
-    cursor: pointer;
-  }
-  .cover-preview{
-    width: 100%;
-    max-height: 260px;
-    object-fit: contain;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,.2);
-    background: rgba(0,0,0,.2);
-  }
-  .muted{
-    color: rgba(255,255,255,.56);
-    font-size: 12px;
-  }
-  .editor-actions{
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-  }
-
-  @media (max-width: 860px){
-    :global(.saved-card){
-      grid-template-columns: 1fr;
-    }
-    :global(.calendar-grid){
-      gap: 6px;
-    }
-    :global(.cal-cell){
-      min-height: 56px;
-    }
-  }
+    :global(main.container) { width: min(1800px, calc(100vw - 20px)); }
+    .schedule-shell { display: grid; gap: 18px; }
+    .page-head { display: grid; gap: 6px; }
+    .calendar-panel { @include m.glass; border-radius: var(--r-xl); padding: 18px; display: grid; gap: 12px; }
+    .toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+    .month { color: rgba(255,255,255,.82); font-size: 17px; font-weight: 700; margin-top: 6px; }
+    .admin-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+    .admin-tools input { border-radius: 10px; border: 1px solid rgba(255,255,255,.16); background: rgba(0,0,0,.34); color: rgba(255,255,255,.92); padding: 10px; font-size: 14px; font-family: inherit; }
+    .admin-tools input[type="number"] { width: 110px; }
+    .status { min-height: 18px; margin: 0; color: rgba(255,255,255,.72); font-size: 13px; }
+    .status[hidden] { display: none !important; }
+    .status.is-error { color: #f3a3a3; }
+    .calendar-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+    .calendar-layout.has-detail { grid-template-columns: minmax(0, 1.75fr) minmax(340px, .92fr); }
+    .board { min-width: 0; }
+    .weekdays, :global(.calendar-grid) { min-width: 0; }
+    .weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; color: rgba(255,255,255,.66); font-size: 12px; text-align: center; }
+    .weekdays span { padding: 4px 0; }
+    :global(.calendar-grid) { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; grid-auto-rows: clamp(138px, 9.2vw, 172px); }
+    :global(.cal-cell) { height: 100%; min-height: 0; border-radius: 16px; border: 1px solid rgba(255,255,255,.12); background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.12)), rgba(0,0,0,.18); padding: 9px; display: grid; grid-template-rows: auto minmax(0, 1fr); align-content: start; gap: 8px; overflow: hidden; }
+    :global(button.cal-cell) { appearance: none; width: 100%; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+    :global(.cal-cell.is-empty) { opacity: .32; border-style: dashed; }
+    :global(.cal-cell.is-today) { border-color: rgba(160,225,196,.58); box-shadow: 0 0 0 1px rgba(160,225,196,.22) inset; }
+    :global(.cal-cell.has-events) { background: radial-gradient(circle at top left, rgba(118,178,255,.12), transparent 44%), linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.16)), rgba(0,0,0,.18); }
+    :global(.cal-cell.is-selected) { border-color: rgba(255,255,255,.32); box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 16px 36px rgba(0,0,0,.18); }
+    :global(.cal-head) { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    :global(.cal-day) { font-size: 16px; font-weight: 700; color: rgba(255,255,255,.9); }
+    :global(.cal-marks) { display: flex; gap: 4px; align-items: center; }
+    :global(.cal-mark) { font-size: 14px; line-height: 1; opacity: .92; }
+    :global(.cal-summary) { display: grid; gap: 7px; align-content: start; min-height: 0; overflow: hidden; }
+    :global(.cal-empty-copy) { min-height: 1px; }
+    :global(.summary-item) { min-width: 0; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(9, 12, 24, .58); padding: 7px; display: grid; gap: 5px; }
+    :global(.summary-item.room-fiona) { border-color: rgba(255,153,201,.34); background: linear-gradient(180deg, rgba(255,153,201,.12), rgba(0,0,0,0)), rgba(35,16,27,.52); }
+    :global(.summary-item.room-gladys) { border-color: rgba(137,146,255,.34); background: linear-gradient(180deg, rgba(137,146,255,.12), rgba(0,0,0,0)), rgba(19,18,37,.52); }
+    :global(.summary-item.room-both) { border-color: rgba(146,236,255,.34); background: linear-gradient(180deg, rgba(146,236,255,.10), rgba(0,0,0,0)), rgba(18,26,34,.54); }
+    :global(.summary-top) { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    :global(.summary-time) { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.94); }
+    :global(.summary-room) { font-size: 11px; color: rgba(255,255,255,.64); white-space: nowrap; }
+    :global(.summary-title) { font-size: 11px; line-height: 1.35; font-weight: 700; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    :global(.summary-more) { font-size: 11px; color: rgba(255,255,255,.58); padding: 2px 2px 0; }
+    .detail-panel { @include m.glass; border-radius: 20px; padding: 16px; display: grid; gap: 12px; position: sticky; top: 14px; }
+    .detail-panel[hidden] { display: none !important; }
+    .detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .detail-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .detail-kicker { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.5); margin-bottom: 4px; }
+    .detail-date { margin: 0; font-size: 24px; line-height: 1.1; }
+    .detail-meta { margin: 0; color: rgba(255,255,255,.68); font-size: 13px; }
+    .detail-list { display: grid; gap: 10px; }
+    .detail-empty { margin: 0; color: rgba(255,255,255,.58); font-size: 14px; }
+    .detail-empty[hidden] { display: none !important; }
+    .detail-add-btn[hidden] { display: none !important; }
+    :global(.event-card) { border: 1px solid rgba(255,255,255,.14); border-radius: 14px; padding: 8px; display: grid; gap: 8px; text-align: left; color: rgba(255,255,255,.95); background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.14)), rgba(13,18,35,.72); box-shadow: 0 10px 24px rgba(0,0,0,.12); }
+    :global(button.event-card) { cursor: pointer; font-family: inherit; }
+    :global(.event-card.room-fiona) { border-color: rgba(255,153,201,.4); background: linear-gradient(180deg, rgba(255,153,201,.14), rgba(0,0,0,0)), rgba(35,16,27,.72); }
+    :global(.event-card.room-gladys) { border-color: rgba(137,146,255,.4); background: linear-gradient(180deg, rgba(137,146,255,.16), rgba(0,0,0,0)), rgba(19,18,37,.72); }
+    :global(.event-card.room-both) { border-color: rgba(146,236,255,.38); background: linear-gradient(180deg, rgba(146,236,255,.12), rgba(0,0,0,0)), rgba(18,26,34,.72); }
+    :global(.event-card:hover) { transform: translateY(-1px); border-color: rgba(255,255,255,.26); }
+    :global(.event-cover) { height: 62px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.04); display: grid; }
+    :global(.event-cover.is-both) { grid-template-columns: 1fr 1fr; gap: 2px; }
+    :global(.event-cover-image) { width: 100%; height: 100%; object-fit: cover; display: block; }
+    :global(.event-cover-fallback) { width: 100%; height: 100%; display: grid; place-items: center; color: rgba(255,255,255,.72); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+    :global(.event-body) { display: grid; gap: 6px; }
+    :global(.detail-card) { grid-template-columns: 112px minmax(0, 1fr); align-items: stretch; }
+    :global(.detail-card .event-cover) { height: 100%; min-height: 92px; }
+    :global(.detail-title) { min-height: 0; -webkit-line-clamp: 3; line-clamp: 3; }
+    :global(.event-meta) { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11px; }
+    :global(.event-time) { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 8px; background: rgba(255,255,255,.12); color: rgba(255,255,255,.94); font-weight: 700; letter-spacing: .04em; }
+    :global(.event-room) { color: rgba(255,255,255,.68); white-space: nowrap; }
+    :global(.event-title) { font-size: 13px; line-height: 1.4; font-weight: 700; min-height: 2.8em; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    :global(.event-badges) { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+    :global(.event-badge) { border-radius: 999px; border: 1px solid rgba(255,255,255,.14); padding: 3px 7px; font-size: 10px; color: rgba(255,255,255,.76); background: rgba(255,255,255,.03); }
+    :global(.event-badge.mode) { border-color: rgba(255,255,255,.24); color: rgba(255,255,255,.92); background: rgba(255,255,255,.10); }
+    :global(.event-badge.auto) { border-color: rgba(74,206,148,.38); color: rgba(208,255,233,.96); background: rgba(74,206,148,.14); }
+    .btn { border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(20,20,30,.5); color: rgba(255,255,255,.9); padding: 7px 12px; font-size: 13px; cursor: pointer; font-family: inherit; }
+    .btn.primary { background: rgba(74,206,148,.18); border-color: rgba(74,206,148,.5); color: rgba(224,255,241,.98); }
+    .btn.danger { border-color: rgba(255,118,118,.36); background: rgba(146,32,32,.18); }
+    .btn:hover { border-color: rgba(255,255,255,.3); background: rgba(40,40,60,.62); }
+    .modal { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; background: rgba(0,0,0,.56); padding: 16px; }
+    .modal[hidden] { display: none !important; }
+    .modal-panel { width: min(620px, 100%); border-radius: 20px; padding: 16px; @include m.glass; }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .modal-head h3 { margin: 0; font-size: 18px; }
+    .icon-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(255,255,255,.2); background: rgba(0,0,0,.3); color: rgba(255,255,255,.9); cursor: pointer; }
+    .field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+    .field span { font-size: 12px; color: rgba(255,255,255,.78); }
+    .field input, .field select { border-radius: 10px; border: 1px solid rgba(255,255,255,.16); background: rgba(0,0,0,.34); color: rgba(255,255,255,.92); padding: 10px; font-size: 14px; font-family: inherit; }
+    .field input[type="date"], .field input[type="time"] { color-scheme: dark; padding-right: 42px; }
+    .field input[type="date"]::-webkit-calendar-picker-indicator, .field input[type="time"]::-webkit-calendar-picker-indicator { opacity: .95; filter: invert(1) brightness(1.2); cursor: pointer; }
+    .source-note { margin: 0 0 12px; font-size: 12px; color: rgba(196,236,255,.88); word-break: break-all; }
+    .source-note[hidden] { display: none !important; }
+    .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    @media (max-width: 1480px) { .calendar-layout.has-detail { grid-template-columns: 1fr; } .detail-panel { position: static; } }
+    @media (max-width: 900px) { .calendar-panel { padding: 14px; } .field-row { grid-template-columns: 1fr; } :global(.detail-card) { grid-template-columns: 1fr; } }
   </style>
 </BaseLayout>

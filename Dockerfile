@@ -18,7 +18,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/scripts/fetch-metrics.mjs ./scripts/fetch-metrics.mjs
+COPY --from=build /app/scripts ./scripts
 
 USER node
 EXPOSE 8080
